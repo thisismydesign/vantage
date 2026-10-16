@@ -13,6 +13,9 @@ const base = process.env.E2E_BASE_URL;
 
 export default defineConfig({
   testDir: "e2e",
+  // One worker: every signed-in spec mints a token for the same test user, and a
+  // newer token invalidates the one before it.
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: { baseURL: base ?? "http://localhost:4199", trace: "retain-on-failure" },

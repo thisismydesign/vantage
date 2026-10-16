@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { BaseCurrency } from "@shared/types.ts";
 import { CalendarPage } from "./Calendar.tsx";
 import { Charts } from "./Charts.tsx";
+import { NewsPage } from "./News.tsx";
 import { PortfolioPage } from "./Portfolio.tsx";
 import { TradesPage } from "./Trades.tsx";
 import { useChartData } from "./lib/api.ts";
@@ -17,6 +18,7 @@ export const PAGES = [
   { value: "portfolio", label: "Portfolio" },
   { value: "trades", label: "Trades" },
   { value: "calendar", label: "Calendar" },
+  { value: "news", label: "News" },
 ] as const;
 export type Page = (typeof PAGES)[number]["value"];
 export const isPage = (v: string): v is Page => PAGES.some((p) => p.value === v);
@@ -109,5 +111,6 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
 export function Vantage({ page }: { page: Page }) {
   if (page === "watchlist") return <Charts header={false} />;
   if (page === "calendar") return <CalendarPage />;
+  if (page === "news") return <NewsPage />;
   return <BrokerPages page={page} />;
 }
