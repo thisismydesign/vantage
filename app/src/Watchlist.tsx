@@ -18,6 +18,7 @@ import {
 } from "@mantine/core";
 import { IconUser, IconUserCheck } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
+import { AgentKeys } from "./AgentKeys.tsx";
 import type { ChartItem, ChartTheme } from "./lib/api.ts";
 import { API_BASE } from "./lib/api.ts";
 import {
@@ -530,6 +531,7 @@ function BrokerSettings({ accessToken }: { accessToken: string }) {
 const SETTINGS = [
   { value: "watchlist", label: "Watchlist" },
   { value: "ibkr", label: "Interactive Brokers" },
+  { value: "keys", label: "Agent keys" },
 ] as const;
 type SettingsTab = (typeof SETTINGS)[number]["value"];
 
@@ -562,6 +564,9 @@ function SettingsModal({
         </Tabs.Panel>
         <Tabs.Panel value="ibkr">
           <BrokerSettings accessToken={accessToken} />
+        </Tabs.Panel>
+        <Tabs.Panel value="keys">
+          <AgentKeys />
         </Tabs.Panel>
       </Tabs>
     </Modal>
