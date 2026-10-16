@@ -1,14 +1,27 @@
 // News: what the owner's agent recorded about the companies they follow,
 // newest first, one group per day, filterable by company.
 
-import { Alert, Anchor, Badge, Group, Loader, Paper, Select, Stack, Text } from "@mantine/core";
+import {
+  Alert,
+  Anchor,
+  Badge,
+  Button,
+  Group,
+  Loader,
+  Paper,
+  Select,
+  Stack,
+  Text,
+} from "@mantine/core";
 import { useMemo, useState } from "react";
 import type { NewsItem } from "@shared/types.ts";
 import { API_BASE } from "./lib/api.ts";
 import { dayKey, displayDay, today } from "./lib/events.ts";
-import { displayDateTime } from "./lib/format.ts";
 import { SENTIMENT_COLOR, useNews } from "./lib/news.ts";
 import { useSession } from "./lib/supabase.ts";
+
+/** Rows revealed at a time; the list can run to thousands. */
+const PAGE = 100;
 
 function Row({ item }: { item: NewsItem }) {
   const color = item.sentiment ? SENTIMENT_COLOR[item.sentiment] : undefined;
@@ -28,11 +41,15 @@ function Row({ item }: { item: NewsItem }) {
               {item.title}
             </Text>
           )}
+          {/* The day heading carries the date; feeds rarely know the time. */}
           <Text size="xs" c="dimmed">
-            {displayDateTime(item.published_at)}
-            {item.source ? ` · ${item.source}` : ""}
-            {item.sentiment ? ` · ${item.sentiment}` : ""}
-            {item.expected === null ? "" : item.expected ? " · expected" : " · surprise"}
+            {[
+              item.source,
+              item.sentiment,
+              item.expected === null ? null : item.expected ? "expected" : "surprise",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </Text>
           {item.description && (
             <Text size="sm" c="dimmed">
@@ -49,8 +66,10 @@ export function NewsPage() {
   const session = useSession();
   const { items, loading, error } = useNews(session);
   const [ticker, setTicker] = useState<string | null>(null);
+  const [limit, setLimit] = useState(PAGE);
   const tickers = useMemo(() => [...new Set(items.map((i) => i.ticker))].sort(), [items]);
-  const shown = ticker ? items.filter((i) => i.ticker === ticker) : items;
+  const filtered = ticker ? items.filter((i) => i.ticker === ticker) : items;
+  const shown = filtered.slice(0, limit);
   const days = useMemo(() => {
     const byDay = new Map<string, NewsItem[]>();
     for (const item of shown) {
@@ -108,6 +127,11 @@ export function NewsPage() {
           ))}
         </Stack>
       ))}
+      {filtered.length > limit && (
+        <Button variant="subtle" size="xs" onClick={() => setLimit((l) => l + PAGE)}>
+          Show {Math.min(PAGE, filtered.length - limit)} more of {filtered.length - limit}
+        </Button>
+      )}
     </Stack>
   );
 }
