@@ -36,13 +36,4 @@ pnpm run supabase:deploy && pnpm run deploy
 - Schema changes MUST be new migration files.
 - User-data tables MUST have `owner` and RLS policies.
 - `_shared` MUST run under Deno and Node.
-- Docs MUST stay terse; prescriptions use RFC 2119.
-
-## CI
-
-Every push: lint, typecheck, test, e2e in parallel. On `main` only: deploy (needs all four), then smoke (e2e against production).
-
-The e2e user (`VANTAGE_TEST_EMAIL`) is created on first run and signed in with an admin-minted token; no email is ever sent.
-
-Repository variables: `SUPABASE_URL`, `VITE_SUPABASE_URL`, `SUPABASE_PROJECT_ID`, `CLOUDFLARE_ACCOUNT_ID`, `PRODUCTION_URL`, `VANTAGE_TEST_EMAIL`.
-Repository secrets: `VITE_SUPABASE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `CLOUDFLARE_API_TOKEN`.
+- Docs MUST stay terse and MUST NOT state what the code already shows; prescriptions use RFC 2119.
