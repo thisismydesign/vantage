@@ -482,7 +482,7 @@ async function restOpenapi() {
     paths?: Record<string, unknown>;
     definitions?: Record<string, unknown>;
   };
-  const keep = new Set(["watchlist", "watchlist_themes", "events"]);
+  const keep = new Set(["watchlist", "watchlist_themes", "events", "news"]);
   const pick = (o: Record<string, unknown> | undefined, strip: (k: string) => string) =>
     Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => keep.has(strip(k))));
   return {

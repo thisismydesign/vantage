@@ -262,3 +262,22 @@ export interface CalendarEvent {
   external_id: string | null;
   updated_at: string;
 }
+
+import type { Sentiment } from "../supabase/functions/_shared/news.ts";
+export type { Sentiment };
+
+/** A row of `news`, as PostgREST returns it. */
+export interface NewsItem {
+  id: string;
+  ticker: string;
+  published_at: string;
+  source: string | null;
+  title: string;
+  description: string | null;
+  url: string | null;
+  sentiment: Sentiment | null;
+  /** Whether the market had it priced in; null when the agent gave no view. */
+  expected: boolean | null;
+  external_id: string | null;
+  updated_at: string;
+}

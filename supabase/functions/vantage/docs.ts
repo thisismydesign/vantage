@@ -2,6 +2,7 @@
 // Edits go through Supabase's own REST layer, which describes its tables itself.
 
 import { EVENT_CATEGORIES } from "../_shared/events.ts";
+import { NEWS_SENTIMENTS } from "../_shared/news.ts";
 
 export const SITE = "https://vantage.personal-553.workers.dev";
 
@@ -41,9 +42,11 @@ export function agentBrief(e: Endpoints) {
     "",
     "3. Tell me to check my email and open the sign-in link. My watchlist will be ready when the page opens.",
     "",
-    `Later, when I ask for changes: trade the refresh token for an access token at ${u.tokenRefresh} (header apikey: ${e.anonKey}); the reply holds a new refresh token, so store it and discard the old one every time. My data lives in the Supabase REST API at ${u.rest}, described at ${u.restOpenapi}: the tables watchlist and watchlist_themes, and events (my calendar). Every call needs the headers apikey: ${e.anonKey} and Authorization: Bearer <access_token>.`,
+    `Later, when I ask for changes: trade the refresh token for an access token at ${u.tokenRefresh} (header apikey: ${e.anonKey}); the reply holds a new refresh token, so store it and discard the old one every time. My data lives in the Supabase REST API at ${u.rest}, described at ${u.restOpenapi}: the tables watchlist and watchlist_themes, events (my calendar) and news. Every call needs the headers apikey: ${e.anonKey} and Authorization: Bearer <access_token>.`,
     "",
     `Calendar: when I mention a dated thing about a company I follow (earnings, dividend, launch, conference, ruling), record it: POST ${u.rest}/events?on_conflict=owner,external_id with header Prefer: resolution=merge-duplicates and a JSON row {ticker, category, kind, title, description, starts_on, ends_on, estimated, source, url, external_id}. category is one of ${EVENT_CATEGORIES.join(", ")}; kind is the specific word (earnings, dividend, launch…); external_id is a stable id you choose, so re-sending updates instead of duplicating. The ticker must already be on my watchlist.`,
+    "",
+    `News: when I share an article about a company I follow, or you find one worth keeping, record it: POST ${u.rest}/news?on_conflict=owner,external_id with header Prefer: resolution=merge-duplicates and a JSON row {ticker, published_at, source, title, description, url, sentiment, expected, external_id}. sentiment is your read, one of ${NEWS_SENTIMENTS.join(", ")}; expected is true when the market had it priced in. Same rules for ticker and external_id as the calendar.`,
     "",
     "Onboarding only creates new accounts. If my email already has one, the API answers 409 and I sign in on the site myself.",
     "",
@@ -89,6 +92,25 @@ export function openapi(e: Endpoints) {
     },
     required: ["ticker", "category", "title", "starts_on"],
   };
+  const news = {
+    type: "object",
+    description: "A row of the news table; write it through the REST API, not this function",
+    properties: {
+      ticker: { type: "string", description: "A ticker on the owner's watchlist" },
+      published_at: { type: "string", format: "date-time" },
+      source: { type: "string", description: "Publisher or who said it" },
+      title: { type: "string" },
+      description: { type: "string", description: "Summary, or the reasoning behind the read" },
+      url: { type: "string" },
+      sentiment: { type: "string", enum: [...NEWS_SENTIMENTS] },
+      expected: { type: "boolean", description: "The market had it priced in" },
+      external_id: {
+        type: "string",
+        description: "Caller-chosen stable id; upsert on (owner, external_id)",
+      },
+    },
+    required: ["ticker", "published_at", "title"],
+  };
   const session = {
     type: "object",
     properties: {
@@ -103,10 +125,10 @@ export function openapi(e: Endpoints) {
       title: "Vantage API",
       version: "2",
       description:
-        "Onboarding and prices for Vantage. Watchlist and calendar edits go through the Supabase REST API with a session token; see externalDocs for its generated description and the agent brief for the full flow.",
+        "Onboarding and prices for Vantage. Watchlist, calendar and news edits go through the Supabase REST API with a session token; see externalDocs for its generated description and the agent brief for the full flow.",
     },
     externalDocs: {
-      description: "Supabase's generated description of the watchlist and events tables",
+      description: "Supabase's generated description of the watchlist, events and news tables",
       url: u.restOpenapi,
     },
     servers: [{ url: e.base }],
@@ -118,7 +140,7 @@ export function openapi(e: Endpoints) {
           description: `A Supabase access token. Refresh at ${u.tokenRefresh} with the apikey header.`,
         },
       },
-      schemas: { Group: group, Item: item, Event: event, Session: session },
+      schemas: { Group: group, Item: item, Event: event, News: news, Session: session },
     },
     paths: {
       "/": {
