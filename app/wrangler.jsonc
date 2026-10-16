@@ -1,0 +1,7 @@
+{
+  // Cloudflare Worker serving Vantage as static assets.
+  // `pnpm run deploy` builds dist/ and uploads it with wrangler.
+  "name": "vantage",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./dist", "not_found_handling": "404-page" }
+}

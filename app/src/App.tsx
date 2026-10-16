@@ -1,0 +1,109 @@
+// Vantage's pages. The host owns navigation: standalone it is the URL hash
+// (see useHashPage); a host app may drive `page` itself.
+
+import { Alert, Group, Loader, Text } from "@mantine/core";
+import { useEffect, useMemo, useState } from "react";
+import type { BaseCurrency } from "@shared/types.ts";
+import { Charts } from "./Charts.tsx";
+import { PortfolioPage } from "./Portfolio.tsx";
+import { TradesPage } from "./Trades.tsx";
+import { useChartData } from "./lib/api.ts";
+import { buildPortfolio, buildTrades, pricingFrom, useBrokerData } from "./lib/broker.ts";
+import { useSession } from "./lib/supabase.ts";
+
+export const PAGES = [
+  { value: "watchlist", label: "Watchlist" },
+  { value: "portfolio", label: "Portfolio" },
+  { value: "trades", label: "Trades" },
+] as const;
+export type Page = (typeof PAGES)[number]["value"];
+export const isPage = (v: string): v is Page => PAGES.some((p) => p.value === v);
+
+/** Standalone routing: `#/portfolio`; anything else is the watchlist. */
+export function useHashPage(): [Page, (p: Page) => void] {
+  const read = () => {
+    const h = window.location.hash.replace(/^#\/?/, "");
+    return isPage(h) ? h : "watchlist";
+  };
+  const [page, setPage] = useState<Page>(read);
+  useEffect(() => {
+    const onChange = () => setPage(read());
+    window.addEventListener("hashchange", onChange);
+    return () => window.removeEventListener("hashchange", onChange);
+  }, []);
+  return [page, (p) => (window.location.hash = `/${p}`)];
+}
+
+/** The account's own currency when the charts can convert to it, else euros. */
+const baseOf = (currency: string | null | undefined): BaseCurrency =>
+  currency === "USD" ? "USD" : "EUR";
+
+function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
+  const session = useSession();
+  const broker = useBrokerData(session);
+  // Prices for the holdings come from the same 1D series the charts show.
+  const [cycle, setCycle] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => !document.hidden && setCycle(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const charts = useChartData("1d", cycle, session?.access_token);
+  const live = charts.data?.range === "1d" ? charts.data : undefined;
+  const base = baseOf(broker.snapshot?.base_currency);
+  const pricing = useMemo(() => pricingFrom(live?.series, base), [live, base]);
+  const built = useMemo(
+    () =>
+      broker.snapshot && live
+        ? buildPortfolio(broker.snapshot, live.items, live.themes, pricing, base)
+        : null,
+    [broker.snapshot, live, pricing, base],
+  );
+  const trades = useMemo(
+    () => (live && broker.fills.length ? buildTrades(broker.fills, live.items, base) : null),
+    [broker.fills, live, base],
+  );
+
+  if (!session)
+    return (
+      <Alert title="Sign in to see your portfolio">
+        Positions and trades are private to your account. Sign in from the profile menu.
+      </Alert>
+    );
+  if (broker.loading && !broker.snapshot)
+    return (
+      <Group gap="sm">
+        <Loader size="sm" />
+        <Text size="sm" c="dimmed">
+          Loading broker data…
+        </Text>
+      </Group>
+    );
+  if (!broker.connection)
+    return (
+      <Alert title="No broker connected">
+        Add your Flex token and query ids under Interactive Brokers in the profile menu.
+      </Alert>
+    );
+  if (page === "portfolio") {
+    if (!built)
+      return (
+        <Alert title="No statement yet">
+          {broker.connection.last_error
+            ? `The last sync failed: ${broker.connection.last_error}`
+            : "Sync now under Interactive Brokers settings, or wait for the morning sync."}
+        </Alert>
+      );
+    return <PortfolioPage built={built} items={live!.items} themes={live!.themes} />;
+  }
+  if (!trades)
+    return (
+      <Alert title="No trades yet">
+        Add a trades query id under Interactive Brokers settings and sync.
+      </Alert>
+    );
+  return <TradesPage trades={trades} pricing={pricing} nav={broker.snapshot?.nav ?? null} />;
+}
+
+export function Vantage({ page }: { page: Page }) {
+  return page === "watchlist" ? <Charts header={false} /> : <BrokerPages page={page} />;
+}
