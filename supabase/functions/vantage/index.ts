@@ -3,6 +3,7 @@
 //   GET  /?range=1d|24h|1w|history   prices for the caller's list (defaults when anonymous)
 //   GET  /?lookup=<query>            symbol search (needs a session)
 //   POST /onboard                    create an account for an email; returns a session
+//   POST /token                      exchange an agent key for a session
 //   GET  /agent (brief for an agent), GET /openapi.json
 //
 // Watchlist edits are not here: callers use Supabase's REST layer with their
@@ -16,6 +17,7 @@ import { intradayRange, type Chart } from "../_shared/intraday.ts";
 import { BASES, convert, convertSeries, type RateBook, type RateSeries } from "../_shared/fx.ts";
 import { buildRanges, HISTORY_RANGES, RANGE_SOURCE, thin } from "../_shared/history.ts";
 import type { HistoryRange, RangeSeries } from "../../../shared/types.ts";
+import { KEY_PREFIX, sha256Hex } from "../_shared/keys.ts";
 import { resolveCaller, type Caller } from "./auth.ts";
 import { agentBrief, endpoints, openapi, SITE, type Endpoints } from "./docs.ts";
 import {
@@ -377,6 +379,70 @@ async function prices(range: Range, list: Awaited<ReturnType<typeof loadList>>) 
   };
 }
 
+const clientIp = (request: Request) =>
+  request.headers.get("cf-connecting-ip") ??
+  request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+  "unknown";
+
+/** Attempts from an address on a route in the last hour, this one included. */
+async function throttled(ip: string, route: string, perHour: number) {
+  const since = new Date(Date.now() - 3_600_000).toISOString();
+  const { count } = await db
+    .from("throttle")
+    .select("id", { count: "exact", head: true })
+    .eq("ip", ip)
+    .eq("route", route)
+    .gte("at", since);
+  if ((count ?? 0) >= perHour) return true;
+  await db.from("throttle").insert({ ip, route });
+  return false;
+}
+
+/**
+ * A session for an existing user: a sign-in token minted with admin rights
+ * and verified at once, the same session a magic link would create.
+ */
+async function mintSession(email: string) {
+  const link = await db.auth.admin.generateLink({ type: "magiclink", email });
+  if (link.error) throw new Error(link.error.message);
+  const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  const verified = await anon.auth.verifyOtp({
+    type: "magiclink",
+    token_hash: link.data.properties.hashed_token,
+  });
+  if (verified.error || !verified.data.session)
+    throw new Error(verified.error?.message ?? "Could not start a session.");
+  const { access_token, refresh_token, expires_at } = verified.data.session;
+  return { access_token, refresh_token, expires_at };
+}
+
+const TOKEN_LIMIT = { perHour: 60 };
+
+/** A cold agent's way in: its key, hashed, names an owner; the owner gets a session. */
+async function token(request: Request, api: Endpoints, ip: string) {
+  if (await throttled(ip, "token", TOKEN_LIMIT.perHour))
+    return json({ error: "Too many attempts from this address. Try again in an hour." }, 429);
+  const key = (request.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!key.startsWith(KEY_PREFIX))
+    return json({ error: "Send the agent key as Authorization: Bearer <key>." }, 401);
+  const found = await db
+    .from("api_keys")
+    .select("id,owner")
+    .eq("key_hash", await sha256Hex(key))
+    .is("revoked_at", null)
+    .maybeSingle();
+  if (!found.data) return json({ error: "Unknown or revoked key." }, 401);
+  const user = await db.auth.admin.getUserById(found.data.owner);
+  if (user.error || !user.data.user?.email)
+    return json({ error: "The key's owner no longer exists." }, 401);
+  const session = await mintSession(user.data.user.email);
+  await db
+    .from("api_keys")
+    .update({ last_used_at: new Date().toISOString() })
+    .eq("id", found.data.id);
+  return json({ session, api: endpoints(api) });
+}
+
 type OnboardBody = {
   email?: string;
   defaults?: boolean;
@@ -397,15 +463,8 @@ async function onboard(body: OnboardBody, api: Endpoints, ip: string) {
     return json({ error: "A valid email is required." }, 400);
   // Public endpoint: a few accounts an hour per address is plenty for a person
   // and their agent, and starves anyone trying to flood the user table.
-  const since = new Date(Date.now() - 3_600_000).toISOString();
-  const { count } = await db
-    .from("onboard_attempts")
-    .select("id", { count: "exact", head: true })
-    .eq("ip", ip)
-    .gte("at", since);
-  if ((count ?? 0) >= ONBOARD_LIMIT.perHour)
+  if (await throttled(ip, "onboard", ONBOARD_LIMIT.perHour))
     return json({ error: "Too many sign-ups from this address. Try again in an hour." }, 429);
-  await db.from("onboard_attempts").insert({ ip, email });
   const { data: created, error } = await db.auth.admin.createUser({ email, email_confirm: true });
   if (error || !created.user) {
     const taken = /already|exists|registered/i.test(error?.message ?? "");
@@ -438,16 +497,7 @@ async function onboard(body: OnboardBody, api: Endpoints, ip: string) {
     }
   }
 
-  const link = await db.auth.admin.generateLink({ type: "magiclink", email });
-  if (link.error) return json({ error: link.error.message }, 500);
-  const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-  const verified = await anon.auth.verifyOtp({
-    type: "magiclink",
-    token_hash: link.data.properties.hashed_token,
-  });
-  if (verified.error || !verified.data.session)
-    return json({ error: verified.error?.message ?? "Could not start a session." }, 500);
-  const { access_token, refresh_token, expires_at } = verified.data.session;
+  const session = await mintSession(email);
 
   // The human's own sign-in email; the OTP endpoint sends it for an existing user.
   const sent = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
@@ -458,7 +508,7 @@ async function onboard(body: OnboardBody, api: Endpoints, ip: string) {
   return json(
     {
       email,
-      session: { access_token, refresh_token, expires_at },
+      session,
       signInEmailSent: sent.ok,
       warnings,
       list: publicList(await loadList(db, owner)),
@@ -523,12 +573,10 @@ Deno.serve(async (request) => {
     if (route === "/rest-openapi.json" && method === "GET") return json(await restOpenapi());
     if (route === "/onboard" && method === "POST") {
       const body = ((await request.json().catch(() => ({}))) ?? {}) as OnboardBody;
-      const ip =
-        request.headers.get("cf-connecting-ip") ??
-        request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-        "unknown";
-      return await onboard(body, api, ip);
+      return await onboard(body, api, clientIp(request));
     }
+    if (route === "/token" && method === "POST")
+      return await token(request, api, clientIp(request));
     if (route !== "/") return json({ error: "Not found." }, 404);
     if (method !== "GET") return json({ error: "GET only." }, 405);
 

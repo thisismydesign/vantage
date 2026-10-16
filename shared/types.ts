@@ -281,3 +281,13 @@ export interface NewsItem {
   external_id: string | null;
   updated_at: string;
 }
+
+/** A row of `api_keys` as the owner sees it; the hash never leaves the database. */
+export interface ApiKey {
+  id: string;
+  name: string;
+  prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}

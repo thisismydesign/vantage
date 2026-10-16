@@ -17,6 +17,7 @@ export type Endpoints = {
 
 export const endpoints = (e: Endpoints) => ({
   onboard: `${e.base}/onboard`,
+  token: `${e.base}/token`,
   prices: `${e.base}?range=1d`,
   lookup: `${e.base}?lookup=CRWD`,
   tokenRefresh: `${e.supabase}/auth/v1/token?grant_type=refresh_token`,
@@ -49,6 +50,8 @@ export function agentBrief(e: Endpoints) {
     `News: when I share an article about a company I follow, or you find one worth keeping, record it: POST ${u.rest}/news?on_conflict=owner,external_id with header Prefer: resolution=merge-duplicates and a JSON row {ticker, published_at, source, title, description, url, sentiment, expected, external_id}. sentiment is your read, one of ${NEWS_SENTIMENTS.join(", ")}; expected is true when the market had it priced in. Same rules for ticker and external_id as the calendar.`,
     "",
     "Onboarding only creates new accounts. If my email already has one, the API answers 409 and I sign in on the site myself.",
+    "",
+    `If I hand you an agent key instead (I make them under Agent keys in my profile menu), skip onboarding: POST ${u.token} with header Authorization: Bearer <key>. The reply holds a session; use its access_token until expires_at, then exchange the key again. Keep the key safe; I can revoke it.`,
     "",
   ].join("\n");
 }
@@ -134,6 +137,11 @@ export function openapi(e: Endpoints) {
     servers: [{ url: e.base }],
     components: {
       securitySchemes: {
+        agentKey: {
+          type: "http",
+          scheme: "bearer",
+          description: "An agent key the owner made under Agent keys; exchange it at /token",
+        },
         session: {
           type: "http",
           scheme: "bearer",
@@ -212,6 +220,30 @@ export function openapi(e: Endpoints) {
               },
             },
             "409": { description: "The email already has an account" },
+          },
+        },
+      },
+      "/token": {
+        post: {
+          summary: "Exchange an agent key for a session",
+          security: [{ agentKey: [] }],
+          responses: {
+            "200": {
+              description: "A session for the key's owner",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      session: session,
+                      api: { type: "object", description: "Every endpoint the agent needs" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": { description: "Unknown or revoked key" },
+            "429": { description: "Too many attempts from this address" },
           },
         },
       },
