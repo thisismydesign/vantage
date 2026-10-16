@@ -28,7 +28,8 @@ export const isPage = (v: string): v is Page => PAGES.some((p) => p.value === v)
 /** Standalone routing: `#/portfolio`; anything else is the watchlist. */
 export function useHashPage(): [Page, (p: Page) => void] {
   const read = () => {
-    const h = window.location.hash.replace(/^#\/?/, "");
+    // The first segment is the page; a page may read the rest (#/tools/margin).
+    const h = window.location.hash.replace(/^#\/?/, "").split("/")[0];
     return isPage(h) ? h : "watchlist";
   };
   const [page, setPage] = useState<Page>(read);

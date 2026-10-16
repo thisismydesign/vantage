@@ -1,21 +1,35 @@
-// Tools: calculators over the owner's own data. One for now; the switcher
-// appears once there is a second.
+// Tools: calculators over the owner's own data, one subpage each at
+// #/tools/<tool>. Each tool gates on what it needs.
 
 import { Alert, Group, Loader, SegmentedControl, Text } from "@mantine/core";
+import { useEffect, useState } from "react";
 import { useBrokerData } from "./lib/broker.ts";
 import { useSession } from "./lib/supabase.ts";
-import { useLocalState } from "./lib/useLocalState.ts";
 import { MarginSizing } from "./tools/MarginSizing.tsx";
 
 const TOOLS = [{ value: "margin", label: "Margin sizing" }] as const;
 type Tool = (typeof TOOLS)[number]["value"];
+const isTool = (v: string): v is Tool => TOOLS.some((t) => t.value === v);
 
-export function ToolsPage() {
+/** The second hash segment picks the tool: `#/tools/margin`. */
+function useHashTool(): [Tool, (t: Tool) => void] {
+  const read = () => {
+    const sub = window.location.hash.replace(/^#\/?/, "").split("/")[1] ?? "";
+    return isTool(sub) ? sub : TOOLS[0].value;
+  };
+  const [tool, setTool] = useState<Tool>(read);
+  useEffect(() => {
+    const onChange = () => setTool(read());
+    window.addEventListener("hashchange", onChange);
+    return () => window.removeEventListener("hashchange", onChange);
+  }, []);
+  return [tool, (t) => (window.location.hash = `/tools/${t}`)];
+}
+
+/** Margin sizing starts from the latest statement. */
+function MarginSizingTool() {
   const session = useSession();
   const broker = useBrokerData(session);
-  const [tool, setTool] = useLocalState<Tool>("tools.tool", "margin");
-  const label = TOOLS.find((t) => t.value === tool)?.label;
-
   if (!session)
     return (
       <Alert title="Sign in to use the tools">
@@ -34,24 +48,28 @@ export function ToolsPage() {
   if (!broker.snapshot)
     return (
       <Alert title="No statement yet">
-        The tools start from your latest broker statement. Connect Interactive Brokers in the
+        This tool starts from your latest broker statement. Connect Interactive Brokers in the
         profile menu and sync.
       </Alert>
     );
+  return <MarginSizing snapshot={broker.snapshot} />;
+}
+
+export function ToolsPage() {
+  const [tool, go] = useHashTool();
   return (
     <>
       <Group justify="space-between" mb="sm">
-        <Text fw={600}>{label}</Text>
-        {TOOLS.length > 1 && (
-          <SegmentedControl
-            size="xs"
-            data={[...TOOLS]}
-            value={tool}
-            onChange={(v) => setTool(v as Tool)}
-          />
-        )}
+        <Text fw={600}>{TOOLS.find((t) => t.value === tool)?.label}</Text>
+        <SegmentedControl
+          size="xs"
+          data={[...TOOLS]}
+          value={tool}
+          onChange={(v) => go(v as Tool)}
+          aria-label="Tool"
+        />
       </Group>
-      {tool === "margin" && <MarginSizing snapshot={broker.snapshot} />}
+      {tool === "margin" && <MarginSizingTool />}
     </>
   );
 }
