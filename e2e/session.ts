@@ -75,3 +75,20 @@ export const restHeaders = (session: Session) => ({
 /** Local calendar day as YYYY-MM-DD, matching what the app shows. */
 export const localDay = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Give the test user a broker snapshot so pages built on the statement have figures. */
+export async function seedSnapshot(session: Session) {
+  const admin: Admin = createClient(SUPABASE_URL!, SECRET_KEY!, {
+    auth: { persistSession: false },
+  });
+  const { error } = await admin.from("portfolio_snapshots").upsert({
+    owner: session.user.id,
+    as_of: localDay(),
+    account_id: "U0000000",
+    base_currency: "EUR",
+    nav: 200_000,
+    cash: -50_000,
+    positions: [],
+  });
+  if (error) throw new Error(error.message);
+}
