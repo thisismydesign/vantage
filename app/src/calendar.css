@@ -1,0 +1,80 @@
+/* Month grid: fixed-height cells so the month never changes shape; a cell
+   with many events scrolls inside itself instead of stretching the row. */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-left: 1px solid var(--mantine-color-default-border);
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+.cal-head {
+  padding: 4px 6px;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  border-right: 1px solid var(--mantine-color-default-border);
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+.cal-cell {
+  height: 7.5rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--mantine-color-default-border);
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+.cal-cell[data-outside] {
+  color: var(--mantine-color-dimmed);
+  background: var(--mantine-color-default-hover);
+}
+.cal-cell[data-past] .cal-events {
+  opacity: 0.62;
+}
+.cal-cell[data-today] {
+  box-shadow: inset 0 0 0 2px var(--mantine-primary-color-filled);
+}
+.cal-day {
+  padding: 2px 6px;
+  font-size: var(--mantine-font-size-xs);
+  flex: none;
+}
+.cal-cell[data-today] .cal-day {
+  font-weight: 700;
+  color: var(--mantine-primary-color-filled);
+}
+.cal-events {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 3px 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cal-chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 1px 4px;
+  border-radius: var(--mantine-radius-sm);
+  border: 0;
+  border-left: 3px solid var(--chip-color);
+  font-family: inherit;
+  background: color-mix(in srgb, var(--chip-color) 18%, transparent);
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  color: inherit;
+}
+.cal-chip:hover {
+  background: color-mix(in srgb, var(--chip-color) 32%, transparent);
+}
+@media (max-width: 48em) {
+  .cal-cell {
+    height: 5.5rem;
+  }
+  .cal-chip-title {
+    display: none;
+  }
+}

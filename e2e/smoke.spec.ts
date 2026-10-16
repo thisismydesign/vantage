@@ -1,14 +1,6 @@
-/// <reference lib="dom" />
 // Runs against a local preview build before deploy and against production after.
 import { expect, test } from "@playwright/test";
-import {
-  ANON_KEY,
-  SUPABASE_URL,
-  TEST_EMAIL,
-  canSignIn,
-  storageKey,
-  testSession,
-} from "./session.ts";
+import { ANON_KEY, SUPABASE_URL, TEST_EMAIL, canSignIn, signIn } from "./session.ts";
 
 const API = `${SUPABASE_URL}/functions/v1/vantage`;
 
@@ -21,11 +13,7 @@ test("shows the public watchlist with charts", async ({ page }) => {
 
 test("signs in the test user", async ({ page }) => {
   test.skip(!canSignIn, "SUPABASE_SECRET_KEY, SUPABASE_URL and VITE_SUPABASE_KEY are needed");
-  const session = await testSession();
-  await page.addInitScript(
-    ([key, value]) => window.localStorage.setItem(key, value),
-    [storageKey(), JSON.stringify(session)],
-  );
+  await signIn(page);
   await page.goto("/");
   await page.getByRole("button", { name: "Account", exact: true }).click();
   await expect(page.getByText(TEST_EMAIL)).toBeVisible();

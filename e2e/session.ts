@@ -1,5 +1,7 @@
+/// <reference lib="dom" />
 // One persistent test user, signed in without email: an admin-minted sign-in
 // token verified at once, the same session a magic link would create.
+import type { Page } from "@playwright/test";
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 
 // The tables are untyped here; the helper copies rows as it finds them.
@@ -52,3 +54,24 @@ async function seedIfEmpty(admin: Admin, owner: string) {
   if (items.data?.length)
     await admin.from("watchlist").insert(items.data.map((i) => ({ ...i, owner })));
 }
+
+/** Open the next page already signed in as the test user. */
+export async function signIn(page: Page): Promise<Session> {
+  const session = await testSession();
+  await page.addInitScript(
+    ([key, value]) => window.localStorage.setItem(key, value),
+    [storageKey(), JSON.stringify(session)],
+  );
+  return session;
+}
+
+/** Headers for REST calls as the test user, the way an agent makes them. */
+export const restHeaders = (session: Session) => ({
+  apikey: ANON_KEY ?? "",
+  Authorization: `Bearer ${session.access_token}`,
+  "Content-Type": "application/json",
+});
+
+/** Local calendar day as YYYY-MM-DD, matching what the app shows. */
+export const localDay = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

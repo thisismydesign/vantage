@@ -244,6 +244,7 @@ export interface IntradaySeries {
 }
 
 import type { EventCategory } from "../supabase/functions/_shared/events.ts";
+export type { EventCategory };
 
 /** A row of `events`, as PostgREST returns it. */
 export interface CalendarEvent {

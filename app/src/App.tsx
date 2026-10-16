@@ -4,6 +4,7 @@
 import { Alert, Group, Loader, Text } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 import type { BaseCurrency } from "@shared/types.ts";
+import { CalendarPage } from "./Calendar.tsx";
 import { Charts } from "./Charts.tsx";
 import { PortfolioPage } from "./Portfolio.tsx";
 import { TradesPage } from "./Trades.tsx";
@@ -15,6 +16,7 @@ export const PAGES = [
   { value: "watchlist", label: "Watchlist" },
   { value: "portfolio", label: "Portfolio" },
   { value: "trades", label: "Trades" },
+  { value: "calendar", label: "Calendar" },
 ] as const;
 export type Page = (typeof PAGES)[number]["value"];
 export const isPage = (v: string): v is Page => PAGES.some((p) => p.value === v);
@@ -105,5 +107,7 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
 }
 
 export function Vantage({ page }: { page: Page }) {
-  return page === "watchlist" ? <Charts header={false} /> : <BrokerPages page={page} />;
+  if (page === "watchlist") return <Charts header={false} />;
+  if (page === "calendar") return <CalendarPage />;
+  return <BrokerPages page={page} />;
 }
