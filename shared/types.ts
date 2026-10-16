@@ -242,3 +242,22 @@ export interface IntradaySeries {
   previousClose: number | null;
   points: [string, number][];
 }
+
+import type { EventCategory } from "../supabase/functions/_shared/events.ts";
+
+/** A row of `events`, as PostgREST returns it. */
+export interface CalendarEvent {
+  id: string;
+  ticker: string;
+  category: EventCategory;
+  kind: string | null;
+  title: string;
+  description: string | null;
+  starts_on: string;
+  ends_on: string | null;
+  estimated: boolean;
+  source: string | null;
+  url: string | null;
+  external_id: string | null;
+  updated_at: string;
+}

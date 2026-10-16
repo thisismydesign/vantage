@@ -1,6 +1,8 @@
 // What an agent reads to work with Vantage: the onboarding brief and the API description.
 // Edits go through Supabase's own REST layer, which describes its tables itself.
 
+import { EVENT_CATEGORIES } from "../_shared/events.ts";
+
 export const SITE = "https://vantage.personal-553.workers.dev";
 
 export type Endpoints = {
@@ -39,7 +41,9 @@ export function agentBrief(e: Endpoints) {
     "",
     "3. Tell me to check my email and open the sign-in link. My watchlist will be ready when the page opens.",
     "",
-    `Later, when I ask for changes: trade the refresh token for an access token at ${u.tokenRefresh} (header apikey: ${e.anonKey}); the reply holds a new refresh token, so store it and discard the old one every time. My watchlist lives in the Supabase REST API at ${u.rest}, described at ${u.restOpenapi}. Every call needs the headers apikey: ${e.anonKey} and Authorization: Bearer <access_token>.`,
+    `Later, when I ask for changes: trade the refresh token for an access token at ${u.tokenRefresh} (header apikey: ${e.anonKey}); the reply holds a new refresh token, so store it and discard the old one every time. My data lives in the Supabase REST API at ${u.rest}, described at ${u.restOpenapi}: the tables watchlist and watchlist_themes, and events (my calendar). Every call needs the headers apikey: ${e.anonKey} and Authorization: Bearer <access_token>.`,
+    "",
+    `Calendar: when I mention a dated thing about a company I follow (earnings, dividend, launch, conference, ruling), record it: POST ${u.rest}/events?on_conflict=owner,external_id with header Prefer: resolution=merge-duplicates and a JSON row {ticker, category, kind, title, description, starts_on, ends_on, estimated, source, url, external_id}. category is one of ${EVENT_CATEGORIES.join(", ")}; kind is the specific word (earnings, dividend, launch…); external_id is a stable id you choose, so re-sending updates instead of duplicating. The ticker must already be on my watchlist.`,
     "",
     "Onboarding only creates new accounts. If my email already has one, the API answers 409 and I sign in on the site myself.",
     "",
@@ -64,6 +68,27 @@ export function openapi(e: Endpoints) {
     },
     required: ["ticker"],
   };
+  const event = {
+    type: "object",
+    description: "A row of the events table; write it through the REST API, not this function",
+    properties: {
+      ticker: { type: "string", description: "A ticker on the owner's watchlist" },
+      category: { type: "string", enum: [...EVENT_CATEGORIES] },
+      kind: { type: "string", description: "The specific thing: earnings, dividend, launch…" },
+      title: { type: "string" },
+      description: { type: "string" },
+      starts_on: { type: "string", format: "date" },
+      ends_on: { type: "string", format: "date", description: "Inclusive; omit for one day" },
+      estimated: { type: "boolean", description: "The date is not confirmed by the company" },
+      source: { type: "string" },
+      url: { type: "string" },
+      external_id: {
+        type: "string",
+        description: "Caller-chosen stable id; upsert on (owner, external_id)",
+      },
+    },
+    required: ["ticker", "category", "title", "starts_on"],
+  };
   const session = {
     type: "object",
     properties: {
@@ -78,10 +103,10 @@ export function openapi(e: Endpoints) {
       title: "Vantage API",
       version: "2",
       description:
-        "Onboarding and prices for Vantage. Watchlist edits go through the Supabase REST API with a session token; see externalDocs for its generated description and the agent brief for the full flow.",
+        "Onboarding and prices for Vantage. Watchlist and calendar edits go through the Supabase REST API with a session token; see externalDocs for its generated description and the agent brief for the full flow.",
     },
     externalDocs: {
-      description: "Supabase's generated description of the watchlist tables",
+      description: "Supabase's generated description of the watchlist and events tables",
       url: u.restOpenapi,
     },
     servers: [{ url: e.base }],
@@ -93,7 +118,7 @@ export function openapi(e: Endpoints) {
           description: `A Supabase access token. Refresh at ${u.tokenRefresh} with the apikey header.`,
         },
       },
-      schemas: { Group: group, Item: item, Session: session },
+      schemas: { Group: group, Item: item, Event: event, Session: session },
     },
     paths: {
       "/": {
