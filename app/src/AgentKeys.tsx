@@ -76,8 +76,7 @@ export function AgentKeys() {
   return (
     <Stack gap="xs">
       <Text size="xs" c="dimmed">
-        A key lets an agent sign in as you without email: it trades the key for a session at the
-        API's /token route. One key per agent; revoke it when the agent is gone.
+        Keys give your agents access to your account.
       </Text>
       {fresh && (
         <Alert

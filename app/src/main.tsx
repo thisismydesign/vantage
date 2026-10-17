@@ -2,7 +2,7 @@ import { AppShell, Box, MantineProvider } from "@mantine/core";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { PrivacyProvider } from "./lib/privacy.tsx";
-import { theme } from "./theme.ts";
+import { cssVariablesResolver, theme } from "./theme.ts";
 import { Vantage, useHashPage } from "./App.tsx";
 import { VantageBar } from "./Header.tsx";
 
@@ -27,7 +27,11 @@ function App() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme="dark">
+    <MantineProvider
+      theme={theme}
+      defaultColorScheme="dark"
+      cssVariablesResolver={cssVariablesResolver}
+    >
       <PrivacyProvider>
         <App />
       </PrivacyProvider>

@@ -1,4 +1,4 @@
-import { createTheme } from "@mantine/core";
+import { createTheme, type CSSVariablesResolver } from "@mantine/core";
 
 export const theme = createTheme({
   primaryColor: "indigo",
@@ -38,3 +38,13 @@ export const MEDIUM_COLOR = {
   audio: "violet.7",
   video: "green.8",
 } as const;
+
+/** Mantine's defaults read faint on dark backgrounds; lift body and secondary text. */
+export const cssVariablesResolver: CSSVariablesResolver = () => ({
+  variables: {},
+  light: { "--mantine-color-dimmed": "var(--mantine-color-gray-7)" },
+  dark: {
+    "--mantine-color-text": "var(--mantine-color-gray-2)",
+    "--mantine-color-dimmed": "var(--mantine-color-dark-1)",
+  },
+});
