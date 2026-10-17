@@ -126,3 +126,17 @@ function stepTicks(start: number, end: number, step: (typeof DATE_STEPS)[number]
   }
   return ticks;
 }
+
+/**
+ * Index of the first x at or after each tick, at most `within` past it, keyed to
+ * the tick it stands for. A tick with no x close enough drops out. `xs` ascends.
+ */
+export function slotTicks(ticks: number[], xs: number[], within = Infinity): Map<number, number> {
+  const slots = new Map<number, number>();
+  let i = 0;
+  for (const t of ticks) {
+    while (i < xs.length && xs[i] < t) i++;
+    if (i < xs.length && xs[i] - t <= within && !slots.has(i)) slots.set(i, t);
+  }
+  return slots;
+}

@@ -8,10 +8,12 @@ import {
   Card,
   Code,
   Collapse,
+  Divider,
   Group,
   Loader,
   MultiSelect,
   Paper,
+  Popover,
   RingProgress,
   SegmentedControl,
   SimpleGrid,
@@ -20,8 +22,8 @@ import {
   Text,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { IconAdjustmentsHorizontal, IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import type { BaseCurrency, HistoryRange, IntradaySeries, VantageHistory } from "@shared/types.ts";
 import {
   closeTime,
@@ -33,7 +35,15 @@ import {
 import { displayDateTime, signedPct } from "./lib/format.ts";
 import { useLocalState } from "./lib/useLocalState.ts";
 import { TONE } from "./theme.ts";
-import { dateTicks, groupMiddles, hourTicks, niceTicks, stepDecimals } from "./lib/axis.ts";
+import {
+  dateTicks,
+  groupMiddles,
+  hourTicks,
+  niceTicks,
+  slotTicks,
+  stepDecimals,
+  thin,
+} from "./lib/axis.ts";
 import {
   asHistory,
   asSession,
@@ -78,6 +88,8 @@ const RANGES: { value: "1d" | "24h" | "1w" | HistoryRange; label: string }[] = [
 ];
 /** What prices are shown in: a base currency, or each name's own. */
 export type Display = BaseCurrency | "native";
+/** How closures read: at their true width, or folded so every bar gets an equal slot. */
+type Gaps = "real" | "short";
 
 /** `value` is in the display currency; `native` is the quote as traded. */
 type Point = { date: string; value: number | null; native: number };
@@ -181,8 +193,10 @@ const TickerChart = memo(function TickerChart({
   compact,
   asOf,
   base,
+  gaps,
 }: {
   ticker: string;
+  gaps: Gaps;
   /** Display currency; prices convert when the backend has rates for them. */
   base: Display;
   /** Response time; the right edge of the 24H window. */
@@ -286,6 +300,14 @@ const TickerChart = memo(function TickerChart({
     ]);
   }, [session, sessionConverted, sessionBaseline, isIntraday, saved, range]);
 
+  // Short gaps give every row its own slot, so nights, weekends and a young
+  // listing's missing past fold away. 1D is one session either way.
+  const short = gaps === "short" && range !== "1d";
+  const plotted = useMemo(
+    () => (short ? rows.map((r, i) => ({ ...r, x: i })) : rows),
+    [rows, short],
+  );
+
   const isBar = (row: Row): row is Bar => row.value != null && !row.previousClose;
   const bars = rows.filter(isBar);
   const last = bars.at(-1);
@@ -340,9 +362,11 @@ const TickerChart = memo(function TickerChart({
     // The window ends now. 24H reaches back a day, 5D to the first of its
     // sessions, the history ranges to their calendar start or the baseline
     // close before it; a listing younger than the window leaves the left empty.
+    // Short gaps span only the bars.
     const end = Date.parse(asOf);
-    const window: [number, number] | undefined =
-      range === "24h"
+    const window: [number, number] | undefined = short
+      ? [rows[0]?.x ?? end, rows.at(-1)?.x ?? end]
+      : range === "24h"
         ? [end - DAY_MS, end]
         : range === "1w"
           ? [rows[0]?.x ?? end, end]
@@ -354,13 +378,19 @@ const TickerChart = memo(function TickerChart({
     const spanDays = (lastX - first) / DAY_MS;
     // Sessions group by exchange day so one trading day gets one label, at its middle.
     const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: session?.timeZone });
-    const dated = rows.filter((p) => p.value != null);
+    const dated = rows.flatMap((p, slot) => (p.value == null ? [] : [{ ...p, slot }]));
     const dates = !clockAxis && range !== "1w" ? dateTicks(first, lastX, maxLabels) : undefined;
+    // Short gaps drop the hours that fall in a closure, so they start from every hour.
     const xTicks = clockAxis
-      ? hourTicks(sessionBounds?.[0] ?? first, sessionBounds?.[1] ?? lastX, timeZone, maxLabels)
+      ? hourTicks(
+          sessionBounds?.[0] ?? first,
+          sessionBounds?.[1] ?? lastX,
+          timeZone,
+          short ? Infinity : maxLabels,
+        )
       : range === "1w"
         ? groupMiddles(
-            dated.map((p) => p.x),
+            dated.map((p) => (short ? p.slot : p.x)),
             dated.map((p) => dayKey.format(new Date(p.date))),
             maxLabels,
           )
@@ -368,7 +398,7 @@ const TickerChart = memo(function TickerChart({
     const xDomain: [number, number] = sessionBounds
       ? [previous?.x ?? sessionBounds[0], sessionBounds[1]]
       : [first, lastX];
-    const xLabel = (x: number) => {
+    const timeLabel = (x: number) => {
       if (clockAxis) return formats.time.format(x);
       if (range === "1w" || dates?.unit === "day") return formats.day.format(x);
       if (dates?.unit === "year") return formats.year.format(x);
@@ -382,8 +412,28 @@ const TickerChart = memo(function TickerChart({
         ? formats.localDayTime.format(date)
         : formats.dayYear.format(date);
     };
-    return { yTicks, yDomain, decimals, xTicks, xDomain, xLabel, rowLabel };
+    if (!short) return { yTicks, yDomain, decimals, xTicks, xDomain, xLabel: timeLabel, rowLabel };
+    // A tick moves to the first bar at or after it; 24H drops one that falls in
+    // a closure, where the next bar is more than an interval away.
+    const slots =
+      range === "1w"
+        ? undefined
+        : slotTicks(
+            xTicks,
+            rows.map((r) => r.x),
+            range === "24h" ? (session?.intervalMinutes ?? 30) * 60_000 : Infinity,
+          );
+    return {
+      yTicks,
+      yDomain,
+      decimals,
+      xTicks: slots ? thin([...slots.keys()], maxLabels) : xTicks,
+      xDomain: [0, rows.length - 1] as [number, number],
+      xLabel: (slot: number) => timeLabel(slots?.get(slot) ?? rows[Math.round(slot)]?.x ?? 0),
+      rowLabel,
+    };
   }, [
+    short,
     rows,
     previous,
     baseline,
@@ -478,7 +528,7 @@ const TickerChart = memo(function TickerChart({
           h={compact ? 110 : 240}
           withXAxis
           withYAxis
-          data={rows}
+          data={plotted}
           dataKey="x"
           series={[
             { name: "value", color: colour, label: ticker },
@@ -617,6 +667,18 @@ function RefreshRing({
   );
 }
 
+/** A labelled block in the settings popover. */
+function Setting({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Stack gap={6}>
+      <Text size="xs" fw={600} c="dimmed">
+        {label}
+      </Text>
+      {children}
+    </Stack>
+  );
+}
+
 /** `header` renders Vantage's own bar inline, for hosts without the standalone app shell. */
 export function Charts({ header = true }: { header?: boolean }) {
   const [liveUpdates, setLiveUpdates] = useLocalState("charts:liveUpdates", true);
@@ -628,6 +690,7 @@ export function Charts({ header = true }: { header?: boolean }) {
   const [range, setRange] = useLocalState("charts:range:v2", "24h");
   const [selected, setSelected] = useLocalState<string[]>("charts:tickers", []);
   const [grouped, setGrouped] = useLocalState("charts:grouped", true);
+  const [gaps, setGaps] = useLocalState<Gaps>("charts:gaps", "real");
   // Collapsed groups are not remembered: every fresh visit opens with all of them expanded.
   const [collapsedThemes, setCollapsedThemes] = useState<string[]>([]);
 
@@ -739,6 +802,7 @@ export function Charts({ header = true }: { header?: boolean }) {
   const baseControl = (
     <SegmentedControl
       size="xs"
+      fullWidth
       value={base}
       onChange={(value) => setBase(value as Display)}
       data={[
@@ -751,6 +815,7 @@ export function Charts({ header = true }: { header?: boolean }) {
   const viewControl = (
     <SegmentedControl
       size="xs"
+      fullWidth={mobile}
       value={view}
       onChange={(value) => setView(value as typeof view)}
       data={[
@@ -773,41 +838,67 @@ export function Charts({ header = true }: { header?: boolean }) {
       maxDropdownHeight={280}
     />
   );
-  const groupControls = (
-    <Group gap="sm" wrap="nowrap">
-      <Switch
-        size="sm"
-        label="Group by theme"
-        checked={grouped}
-        onChange={(e) => setGrouped(e.currentTarget.checked)}
-      />
-      {grouped && (
-        <Button
-          size="xs"
-          variant="default"
-          onClick={() => setCollapsedThemes(allShut ? [] : groups.map((g) => g.id))}
-        >
-          {allShut ? "Expand all" : "Collapse all"}
-        </Button>
-      )}
-    </Group>
+  // Set-and-forget display choices; the toolbar keeps only what changes per glance.
+  const settings = (
+    <Popover position="bottom-start" shadow="md" width={260} withArrow>
+      <Popover.Target>
+        <ActionIcon variant="default" size="input-xs" aria-label="Chart settings" title="Settings">
+          <IconAdjustmentsHorizontal size={16} />
+        </ActionIcon>
+      </Popover.Target>
+      <Popover.Dropdown p="md">
+        <Stack gap="md">
+          <Setting label="Currency">{baseControl}</Setting>
+          {!list && (
+            <Setting label="Time gaps">
+              <SegmentedControl
+                size="xs"
+                fullWidth
+                value={gaps}
+                onChange={(value) => setGaps(value as Gaps)}
+                data={[
+                  { value: "real", label: "Realistic" },
+                  { value: "short", label: "Short" },
+                ]}
+              />
+            </Setting>
+          )}
+          <Divider />
+          <Switch
+            size="sm"
+            label="Group by theme"
+            checked={grouped}
+            onChange={(e) => setGrouped(e.currentTarget.checked)}
+          />
+          {isIntraday && (
+            <Switch
+              size="sm"
+              label="Live price updates"
+              checked={liveUpdates}
+              onChange={(event) => setLiveUpdates(event.currentTarget.checked)}
+            />
+          )}
+        </Stack>
+      </Popover.Dropdown>
+    </Popover>
   );
-  const liveControls = isIntraday ? (
-    <Group gap={6} wrap="nowrap">
-      <Switch
-        size="sm"
-        label="Live price updates"
-        checked={liveUpdates}
-        onChange={(event) => setLiveUpdates(event.currentTarget.checked)}
-      />
-      <RefreshRing
-        cycle={cycle}
-        live={liveUpdates}
-        failed={status === "failed" || failedTickers.length > 0}
-        onRefresh={refresh}
-        updating={updating}
-      />
-    </Group>
+  const collapseAll = grouped ? (
+    <Button
+      size="xs"
+      variant="default"
+      onClick={() => setCollapsedThemes(allShut ? [] : groups.map((g) => g.id))}
+    >
+      {allShut ? "Expand all" : "Collapse all"}
+    </Button>
+  ) : null;
+  const refreshRing = isIntraday ? (
+    <RefreshRing
+      cycle={cycle}
+      live={liveUpdates}
+      failed={status === "failed" || failedTickers.length > 0}
+      onRefresh={refresh}
+      updating={updating}
+    />
   ) : null;
   const statusText = (
     <Text size="xs" c="dimmed" ta="center" truncate>
@@ -846,15 +937,17 @@ export function Charts({ header = true }: { header?: boolean }) {
         // Phones: one control per line, widest first, in the order the eye reads.
         <Stack gap="xs">
           {!list && rangeControl}
-          <Group gap="xs" grow>
-            {baseControl}
-            {viewControl}
+          <Group gap="xs" wrap="nowrap">
+            <Box style={{ flex: 1 }}>{viewControl}</Box>
+            {settings}
           </Group>
           {search}
-          <Group justify="space-between" gap="xs">
-            {groupControls}
-            {liveControls}
-          </Group>
+          {(collapseAll || refreshRing) && (
+            <Group justify="space-between" gap="xs">
+              {collapseAll ?? <span />}
+              {refreshRing}
+            </Group>
+          )}
           <Box ta="center">{statusText}</Box>
         </Stack>
       ) : (
@@ -865,9 +958,9 @@ export function Charts({ header = true }: { header?: boolean }) {
          */
         <Stack gap={6}>
           <Box style={TOOLBAR_ROW}>
-            <Group gap="sm" wrap="nowrap">
-              {baseControl}
+            <Group gap="xs" wrap="nowrap">
               {viewControl}
+              {settings}
             </Group>
             <Box w={MIDDLE_WIDTH} maw="100%" style={{ justifySelf: "center" }}>
               {search}
@@ -875,13 +968,12 @@ export function Charts({ header = true }: { header?: boolean }) {
             <Box style={{ justifySelf: "end" }}>{!list && rangeControl}</Box>
           </Box>
           <Box style={TOOLBAR_ROW}>
-            {/* The 4px inset lines the switch up with the active pill of the control above. */}
-            <Box pl={4}>{groupControls}</Box>
+            <Box>{collapseAll}</Box>
             <Box w={MIDDLE_WIDTH} maw="100%" style={{ justifySelf: "center" }}>
               {statusText}
             </Box>
             <Box pr={4} style={{ justifySelf: "end" }}>
-              {liveControls}
+              {refreshRing}
             </Box>
           </Box>
         </Stack>
@@ -953,6 +1045,7 @@ export function Charts({ header = true }: { header?: boolean }) {
                         range={activeRange.value}
                         saved={savedPoints.get(t) ?? EMPTY}
                         base={base}
+                        gaps={gaps}
                       />
                     ))}
                   </SimpleGrid>
