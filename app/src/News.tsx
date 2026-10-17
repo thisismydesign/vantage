@@ -16,7 +16,8 @@ import {
 import { useMemo, useState } from "react";
 import type { NewsItem } from "@shared/types.ts";
 import { API_BASE } from "./lib/api.ts";
-import { dayKey, displayDay, today } from "./lib/events.ts";
+import { DayHeading } from "./DayHeading.tsx";
+import { dayKey } from "./lib/events.ts";
 import { SENTIMENT_COLOR, useNews } from "./lib/news.ts";
 import { useSession } from "./lib/supabase.ts";
 
@@ -70,6 +71,14 @@ export function NewsPage() {
   const tickers = useMemo(() => [...new Set(items.map((i) => i.ticker))].sort(), [items]);
   const filtered = ticker ? items.filter((i) => i.ticker === ticker) : items;
   const shown = filtered.slice(0, limit);
+  const perDay = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of filtered) {
+      const key = dayKey(new Date(item.published_at));
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
+  }, [filtered]);
   const days = useMemo(() => {
     const byDay = new Map<string, NewsItem[]>();
     for (const item of shown) {
@@ -87,16 +96,18 @@ export function NewsPage() {
       </Alert>
     );
   return (
-    <Stack gap="sm">
+    <Stack gap="md">
       <Group justify="space-between" gap="xs">
         <Group gap="xs">
-          <Text fw={600}>News</Text>
+          <Text fz="xl" fw={700}>
+            News
+          </Text>
           {loading && <Loader size={14} />}
         </Group>
         {tickers.length > 1 && (
           <Select
-            size="xs"
-            w={160}
+            size="sm"
+            w={180}
             placeholder="All companies"
             clearable
             searchable
@@ -118,10 +129,8 @@ export function NewsPage() {
         </Text>
       )}
       {days.map(([day, list]) => (
-        <Stack key={day} gap={4}>
-          <Text size="xs" fw={700} c={day === today() ? undefined : "dimmed"}>
-            {day === today() ? "Today" : displayDay(day)}
-          </Text>
+        <Stack key={day} gap={6}>
+          <DayHeading day={day} count={perDay.get(day)} />
           {list.map((item) => (
             <Row key={item.id} item={item} />
           ))}

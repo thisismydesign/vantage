@@ -1,5 +1,6 @@
-// Calendar: the owner's events by month, by week, or as the agenda ahead.
-// Month cells never change size; a busy day scrolls inside its cell.
+// Calendar: the owner's events by month, by week, or as a list of what is ahead.
+// Month cells never change size; a busy day scrolls inside its cell. An event
+// spanning days draws as one bar, named where it starts and on each new week row.
 
 import {
   ActionIcon,
@@ -21,6 +22,7 @@ import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useState, type CSSProperties } from "react";
 import type { CalendarEvent } from "@shared/types.ts";
 import { EVENT_CATEGORIES } from "../../supabase/functions/_shared/events.ts";
+import { DayHeading } from "./DayHeading.tsx";
 import { API_BASE } from "./lib/api.ts";
 import {
   addDays,
@@ -30,6 +32,7 @@ import {
   dayKey,
   displayDay,
   displayMonth,
+  layoutWeek,
   monthGrid,
   today,
   useEvents,
@@ -41,22 +44,28 @@ import { useLocalState } from "./lib/useLocalState.ts";
 
 import "./calendar.css";
 
-type View = "month" | "week" | "agenda";
+type View = "month" | "week" | "list";
 const VIEWS: { value: View; label: string }[] = [
   { value: "month", label: "Month" },
   { value: "week", label: "Week" },
-  { value: "agenda", label: "Agenda" },
+  { value: "list", label: "List" },
 ];
-const AGENDA_DAYS = 90;
-
-const chipColor = (e: CalendarEvent) => `var(--mantine-color-${CATEGORY_COLOR[e.category]}-6)`;
+const LIST_DAYS = 90;
 
 function Chip({
   event,
+  label = true,
+  left,
+  right,
   full,
   onOpen,
 }: {
   event: CalendarEvent;
+  /** Name the event; a continuing bar leaves it to where the bar starts. */
+  label?: boolean;
+  /** The bar continues from the previous day / into the next. */
+  left?: boolean;
+  right?: boolean;
   /** Always show the title; the month grid hides it on phones. */
   full?: boolean;
   onOpen: (e: CalendarEvent) => void;
@@ -65,12 +74,20 @@ function Chip({
     <button
       type="button"
       className="cal-chip"
-      style={{ "--chip-color": chipColor(event) } as CSSProperties}
+      data-left={left || undefined}
+      data-right={right || undefined}
+      style={{ "--chip-color": CATEGORY_COLOR[event.category] } as CSSProperties}
       title={`${event.ticker} · ${event.title}`}
       onClick={() => onOpen(event)}
     >
-      <b>{event.ticker}</b>{" "}
-      <span className={full ? undefined : "cal-chip-title"}>{event.title}</span>
+      {label ? (
+        <>
+          <b>{event.ticker}</b>{" "}
+          <span className={full ? undefined : "cal-chip-title"}>{event.title}</span>
+        </>
+      ) : (
+        " "
+      )}
     </button>
   );
 }
@@ -85,6 +102,8 @@ function Month({
   onOpen: (e: CalendarEvent) => void;
 }) {
   const now = today();
+  const grid = monthGrid(month);
+  const weeks = Array.from({ length: 6 }, (_, w) => grid.slice(w * 7, w * 7 + 7));
   return (
     <div className="cal-grid">
       {WEEKDAYS.map((w) => (
@@ -92,26 +111,40 @@ function Month({
           {w}
         </div>
       ))}
-      {monthGrid(month).map((d) => {
-        const key = dayKey(d);
-        return (
-          <div
-            key={key}
-            className="cal-cell"
-            data-outside={d.getMonth() !== month.getMonth() || undefined}
-            data-today={key === now || undefined}
-            data-past={key < now || undefined}
-          >
-            <div className="cal-day">{d.getDate()}</div>
-            <div className="cal-events">
-              {events
-                .filter((e) => covers(e, key))
-                .map((e) => (
-                  <Chip key={e.id} event={e} onOpen={onOpen} />
-                ))}
+      {weeks.flatMap((week) => {
+        const days = week.map(dayKey);
+        const slots = layoutWeek(days, events);
+        return week.map((d, i) => {
+          const key = days[i];
+          return (
+            <div
+              key={key}
+              className="cal-cell"
+              data-outside={d.getMonth() !== month.getMonth() || undefined}
+              data-today={key === now || undefined}
+              data-past={key < now || undefined}
+            >
+              <div className="cal-day">{d.getDate()}</div>
+              <div className="cal-events">
+                {slots[i].map((slot, lane) => {
+                  if (!slot) return <div key={`gap-${lane}`} className="cal-spacer" />;
+                  const { event } = slot;
+                  const end = event.ends_on ?? event.starts_on;
+                  return (
+                    <Chip
+                      key={event.id}
+                      event={event}
+                      label={event.starts_on === key || i === 0}
+                      left={event.starts_on < key}
+                      right={end > key}
+                      onOpen={onOpen}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        );
+          );
+        });
       })}
     </div>
   );
@@ -145,9 +178,9 @@ function Week({
             }
           >
             <Text
-              size="xs"
-              c={key === now ? undefined : "dimmed"}
-              fw={key === now ? 700 : 500}
+              size="sm"
+              c={key === now ? "var(--mantine-primary-color-filled)" : undefined}
+              fw={700}
               mb={4}
             >
               {w} {d.getDate()}
@@ -164,44 +197,39 @@ function Week({
   );
 }
 
-function Agenda({
-  events,
-  onOpen,
-}: {
-  events: CalendarEvent[];
-  onOpen: (e: CalendarEvent) => void;
-}) {
+function List({ events, onOpen }: { events: CalendarEvent[]; onOpen: (e: CalendarEvent) => void }) {
   const from = today();
-  const to = dayKey(addDays(new Date(), AGENDA_DAYS));
+  const to = dayKey(addDays(new Date(), LIST_DAYS));
   const ahead = events.filter((e) => (e.ends_on ?? e.starts_on) >= from && e.starts_on <= to);
   if (!ahead.length)
     return (
       <Text size="sm" c="dimmed">
-        Nothing in the next {AGENDA_DAYS} days.
+        Nothing in the next {LIST_DAYS} days.
       </Text>
     );
-  const days = [...new Set(ahead.map((e) => (e.starts_on < from ? from : e.starts_on)))].sort();
+  const dayOf = (e: CalendarEvent) => (e.starts_on < from ? from : e.starts_on);
+  const days = [...new Set(ahead.map(dayOf))].sort();
   return (
-    <Stack gap="sm">
+    <Stack gap="md">
       {days.map((day) => (
-        <Stack key={day} gap={4}>
-          <Text size="xs" fw={700} c={day === from ? undefined : "dimmed"}>
-            {day === from ? "Today" : displayDay(day)}
-          </Text>
+        <Stack key={day} gap={6}>
+          <DayHeading day={day} />
           {ahead
-            .filter((e) => (e.starts_on < from ? from : e.starts_on) === day)
+            .filter((e) => dayOf(e) === day)
             .map((e) => (
               <Paper key={e.id} withBorder p="xs">
                 <Group gap="xs" wrap="nowrap" align="flex-start">
-                  <Badge
-                    color={CATEGORY_COLOR[e.category]}
-                    variant="light"
-                    style={{ flex: "none" }}
-                  >
+                  <Badge color={CATEGORY_COLOR[e.category]} style={{ flex: "none" }}>
                     {e.ticker}
                   </Badge>
                   <Stack gap={0} style={{ minWidth: 0 }}>
-                    <Anchor component="button" size="sm" ta="left" onClick={() => onOpen(e)}>
+                    <Anchor
+                      component="button"
+                      size="sm"
+                      fw={500}
+                      ta="left"
+                      onClick={() => onOpen(e)}
+                    >
                       {e.title}
                     </Anchor>
                     <Text size="xs" c="dimmed">
@@ -261,8 +289,8 @@ export function CalendarPage() {
   const session = useSession();
   const { events, loading, error } = useEvents(session);
   const phone = useMediaQuery("(max-width: 48em)", false, { getInitialValueInEffect: false });
-  const [stored, setView] = useLocalState<View | "">("calendar.view", "");
-  const view: View = stored || (phone ? "agenda" : "month");
+  const [stored, setView] = useLocalState<View | "agenda" | "">("calendar.view", "");
+  const view: View = stored === "agenda" ? "list" : stored || (phone ? "list" : "month");
   const [cursor, setCursor] = useState(() => new Date());
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
 
@@ -282,41 +310,42 @@ export function CalendarPage() {
       ? displayMonth(cursor)
       : view === "week"
         ? `${displayDay(dayKey(start))} – ${displayDay(dayKey(addDays(start, 6)))}`
-        : `Next ${AGENDA_DAYS} days`;
+        : `Next ${LIST_DAYS} days`;
 
   return (
     <Stack gap="sm">
-      <Group justify="space-between" wrap="wrap" gap="xs">
-        <Group gap={4} wrap="nowrap">
-          {view !== "agenda" && (
+      <div className="cal-toolbar">
+        <Group gap={4} wrap="nowrap" className="cal-toolbar-nav">
+          {view !== "list" && (
             <>
               <ActionIcon variant="subtle" aria-label="Previous" onClick={() => step(-1)}>
-                <IconChevronLeft size={18} />
+                <IconChevronLeft size={20} />
               </ActionIcon>
               <ActionIcon variant="subtle" aria-label="Next" onClick={() => step(1)}>
-                <IconChevronRight size={18} />
+                <IconChevronRight size={20} />
               </ActionIcon>
-              <Button variant="subtle" size="compact-xs" onClick={() => setCursor(new Date())}>
+              <Button variant="default" size="compact-sm" onClick={() => setCursor(new Date())}>
                 Today
               </Button>
             </>
           )}
-          <Text fw={600} ml={4}>
-            {title}
-          </Text>
           {loading && <Loader size={14} ml={4} />}
         </Group>
+        <Text className="cal-toolbar-title" fz={26} fw={700} lh={1.2}>
+          {title}
+        </Text>
         <SegmentedControl
-          size="xs"
+          className="cal-toolbar-views"
+          size="sm"
           data={VIEWS}
           value={view}
           onChange={(v) => setView(v as View)}
         />
-      </Group>
+      </div>
       {error && <Alert color="red">{error}</Alert>}
       {view === "month" && <Month month={cursor} events={events} onOpen={setSelected} />}
       {view === "week" && <Week start={start} events={events} onOpen={setSelected} />}
-      {view === "agenda" && <Agenda events={events} onOpen={setSelected} />}
+      {view === "list" && <List events={events} onOpen={setSelected} />}
       {!loading && !events.length && !error && (
         <Text size="sm" c="dimmed">
           Nothing on the calendar yet. Your agent records events through the API; the{" "}
@@ -326,9 +355,9 @@ export function CalendarPage() {
           explains how.
         </Text>
       )}
-      <Group gap={6}>
+      <Group gap="xs">
         {EVENT_CATEGORIES.map((c) => (
-          <Badge key={c} size="xs" variant="light" color={CATEGORY_COLOR[c]}>
+          <Badge key={c} size="lg" color={CATEGORY_COLOR[c]}>
             {c}
           </Badge>
         ))}

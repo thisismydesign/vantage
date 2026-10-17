@@ -9,11 +9,12 @@ import { supabase } from "./supabase.ts";
 /** Fired on `window` after events changed elsewhere (settings, tests). */
 export const EVENTS_CHANGED = "vantage:events-changed";
 
+/** Solid fills under white text, matched in luminance so no category outshines another. */
 export const CATEGORY_COLOR: Record<EventCategory, string> = {
-  results: "indigo",
-  corporate: "teal",
-  milestone: "orange",
-  external: "grape",
+  results: "#4263eb",
+  corporate: "#087f5b",
+  milestone: "#c2410c",
+  external: "#ae3ec9",
 };
 
 export type EventsData = { events: CalendarEvent[]; loading: boolean; error?: string };
@@ -85,3 +86,41 @@ export const covers = (e: CalendarEvent, day: string) =>
 export const displayMonth = (d: Date) => `${d.getFullYear()}.${pad(d.getMonth() + 1)}`;
 export const displayDay = (key: string) => key.replaceAll("-", ".");
 export const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** An event's slot in one week row; lanes keep a multi-day bar on one line. */
+export type Placed = { event: CalendarEvent; lane: number };
+
+/**
+ * Lanes for one week of days (YYYY-MM-DD, Monday first). Earlier and longer
+ * events take the lower lanes. Returns, per day, the slots down to the
+ * lowest lane used that day, with null where a lane is free.
+ */
+export function layoutWeek(days: string[], events: CalendarEvent[]): (Placed | null)[][] {
+  const end = (e: CalendarEvent) => e.ends_on ?? e.starts_on;
+  const length = (e: CalendarEvent) => Date.parse(end(e)) - Date.parse(e.starts_on);
+  const week = events
+    .filter((e) => e.starts_on <= days[6] && end(e) >= days[0])
+    .sort(
+      (a, b) =>
+        a.starts_on.localeCompare(b.starts_on) ||
+        length(b) - length(a) ||
+        a.ticker.localeCompare(b.ticker),
+    );
+  const taken: boolean[][] = [];
+  const slots: (Placed | null)[][] = days.map(() => []);
+  for (const event of week) {
+    const first = Math.max(
+      0,
+      days.findIndex((d) => d >= event.starts_on),
+    );
+    const last = days.reduce((at, d, i) => (d <= end(event) ? i : at), first);
+    let lane = 0;
+    while (taken[lane]?.slice(first, last + 1).some(Boolean)) lane++;
+    taken[lane] ??= [];
+    for (let i = first; i <= last; i++) {
+      taken[lane][i] = true;
+      slots[i][lane] = { event, lane };
+    }
+  }
+  return slots.map((day) => Array.from(day, (slot) => slot ?? null));
+}

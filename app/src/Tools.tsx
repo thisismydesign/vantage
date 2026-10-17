@@ -1,7 +1,7 @@
 // Tools: calculators over the owner's own data, one subpage each at
-// #/tools/<tool>. Each tool gates on what it needs.
+// #/tools/<tool>, picked from tabs across the top.
 
-import { Alert, Group, Loader, SegmentedControl, Text } from "@mantine/core";
+import { Alert, Group, Loader, Tabs, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useBrokerData } from "./lib/broker.ts";
 import { useSession } from "./lib/supabase.ts";
@@ -58,18 +58,17 @@ function MarginSizingTool() {
 export function ToolsPage() {
   const [tool, go] = useHashTool();
   return (
-    <>
-      <Group justify="space-between" mb="sm">
-        <Text fw={600}>{TOOLS.find((t) => t.value === tool)?.label}</Text>
-        <SegmentedControl
-          size="xs"
-          data={[...TOOLS]}
-          value={tool}
-          onChange={(v) => go(v as Tool)}
-          aria-label="Tool"
-        />
-      </Group>
-      {tool === "margin" && <MarginSizingTool />}
-    </>
+    <Tabs value={tool} onChange={(v) => v && isTool(v) && go(v)} variant="pills" radius="xl">
+      <Tabs.List justify="center" mb="lg">
+        {TOOLS.map((t) => (
+          <Tabs.Tab key={t.value} value={t.value} fz="md" fw={600} px="lg">
+            {t.label}
+          </Tabs.Tab>
+        ))}
+      </Tabs.List>
+      <Tabs.Panel value="margin">
+        <MarginSizingTool />
+      </Tabs.Panel>
+    </Tabs>
   );
 }
