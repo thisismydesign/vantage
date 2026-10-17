@@ -42,6 +42,11 @@
 .cal-cell[data-outside] {
   background: var(--mantine-color-default-hover);
 }
+/* Days of another month recede as a whole, their events included. */
+.cal-cell[data-outside] .cal-events {
+  opacity: 0.5;
+  filter: grayscale(0.6);
+}
 .cal-cell[data-outside] .cal-day,
 .cal-cell[data-past] .cal-day {
   color: var(--mantine-color-dimmed);
@@ -79,8 +84,9 @@
   padding: 0 5px;
   border: 0;
   border-radius: var(--mantine-radius-sm);
-  background: var(--chip-color);
-  color: #fff;
+  /* A dim fill of the category; the stripe where a bar starts carries it in full. */
+  background: color-mix(in srgb, var(--chip-color) 22%, var(--mantine-color-body));
+  color: var(--mantine-color-text);
   font-family: inherit;
   font-size: var(--mantine-font-size-xs);
   line-height: 1.35rem;
@@ -89,8 +95,16 @@
   text-overflow: ellipsis;
   cursor: pointer;
 }
+.cal-chip:not([data-left]) {
+  border-left: 4px solid var(--chip-color);
+  padding-left: 4px;
+}
+[data-mantine-color-scheme="dark"] .cal-chip {
+  background: color-mix(in srgb, var(--chip-color) 42%, var(--mantine-color-body));
+  color: #fff;
+}
 .cal-chip:hover {
-  filter: brightness(1.15);
+  filter: brightness(1.2);
 }
 /* A multi-day bar runs to the cell edge on the side it continues. */
 .cal-chip[data-left] {
@@ -115,5 +129,17 @@
   }
   .cal-chip-title {
     display: none;
+  }
+  .cal-chip,
+  .cal-spacer {
+    margin: 0 1px;
+  }
+  .cal-chip {
+    padding: 0 1px 0 2px;
+    text-overflow: clip;
+  }
+  .cal-chip:not([data-left]) {
+    border-left-width: 3px;
+    padding-left: 2px;
   }
 }

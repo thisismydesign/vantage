@@ -50,7 +50,7 @@ const VIEWS: { value: View; label: string }[] = [
   { value: "week", label: "Week" },
   { value: "list", label: "List" },
 ];
-const LIST_DAYS = 90;
+const LIST_DAYS = 30;
 
 function Chip({
   event,
@@ -197,14 +197,22 @@ function Week({
   );
 }
 
-function List({ events, onOpen }: { events: CalendarEvent[]; onOpen: (e: CalendarEvent) => void }) {
-  const from = today();
-  const to = dayKey(addDays(new Date(), LIST_DAYS));
+function List({
+  start,
+  events,
+  onOpen,
+}: {
+  start: Date;
+  events: CalendarEvent[];
+  onOpen: (e: CalendarEvent) => void;
+}) {
+  const from = dayKey(start);
+  const to = dayKey(addDays(start, LIST_DAYS - 1));
   const ahead = events.filter((e) => (e.ends_on ?? e.starts_on) >= from && e.starts_on <= to);
   if (!ahead.length)
     return (
       <Text size="sm" c="dimmed">
-        Nothing in the next {LIST_DAYS} days.
+        Nothing scheduled.
       </Text>
     );
   const dayOf = (e: CalendarEvent) => (e.starts_on < from ? from : e.starts_on);
@@ -303,35 +311,33 @@ export function CalendarPage() {
     );
 
   const step = (n: number) =>
-    setCursor((c) => (view === "month" ? addMonths(c, n) : addDays(weekStart(c), 7 * n)));
+    setCursor((c) =>
+      view === "month"
+        ? addMonths(c, n)
+        : view === "week"
+          ? addDays(weekStart(c), 7 * n)
+          : addDays(c, LIST_DAYS * n),
+    );
   const start = weekStart(cursor);
-  const title =
-    view === "month"
-      ? displayMonth(cursor)
-      : view === "week"
-        ? `${displayDay(dayKey(start))} – ${displayDay(dayKey(addDays(start, 6)))}`
-        : `Next ${LIST_DAYS} days`;
+  // A week belongs to the month holding its Thursday.
+  const title = displayMonth(view === "week" ? addDays(start, 3) : cursor);
 
   return (
     <Stack gap="sm">
       <div className="cal-toolbar">
         <Group gap={4} wrap="nowrap" className="cal-toolbar-nav">
-          {view !== "list" && (
-            <>
-              <ActionIcon variant="subtle" aria-label="Previous" onClick={() => step(-1)}>
-                <IconChevronLeft size={20} />
-              </ActionIcon>
-              <ActionIcon variant="subtle" aria-label="Next" onClick={() => step(1)}>
-                <IconChevronRight size={20} />
-              </ActionIcon>
-              <Button variant="default" size="compact-sm" onClick={() => setCursor(new Date())}>
-                Today
-              </Button>
-            </>
-          )}
+          <ActionIcon variant="subtle" aria-label="Previous" onClick={() => step(-1)}>
+            <IconChevronLeft size={20} />
+          </ActionIcon>
+          <ActionIcon variant="subtle" aria-label="Next" onClick={() => step(1)}>
+            <IconChevronRight size={20} />
+          </ActionIcon>
+          <Button variant="default" size="compact-sm" onClick={() => setCursor(new Date())}>
+            Today
+          </Button>
           {loading && <Loader size={14} ml={4} />}
         </Group>
-        <Text className="cal-toolbar-title" fz={26} fw={700} lh={1.2}>
+        <Text className="cal-toolbar-title" fz={21} fw={700} lh={1.2}>
           {title}
         </Text>
         <SegmentedControl
@@ -345,7 +351,7 @@ export function CalendarPage() {
       {error && <Alert color="red">{error}</Alert>}
       {view === "month" && <Month month={cursor} events={events} onOpen={setSelected} />}
       {view === "week" && <Week start={start} events={events} onOpen={setSelected} />}
-      {view === "list" && <List events={events} onOpen={setSelected} />}
+      {view === "list" && <List start={cursor} events={events} onOpen={setSelected} />}
       {!loading && !events.length && !error && (
         <Text size="sm" c="dimmed">
           Nothing on the calendar yet. Your agent records events through the API; the{" "}

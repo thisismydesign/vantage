@@ -9,12 +9,15 @@ import { supabase } from "./supabase.ts";
 /** Fired on `window` after events changed elsewhere (settings, tests). */
 export const EVENTS_CHANGED = "vantage:events-changed";
 
-/** Solid fills under white text, matched in luminance so no category outshines another. */
+/**
+ * Category identity. Validated as a set on the dark surface for colour-blind
+ * and normal-vision separation (all pairs), and each holds white text at 4.5:1.
+ */
 export const CATEGORY_COLOR: Record<EventCategory, string> = {
-  results: "#4263eb",
-  corporate: "#087f5b",
-  milestone: "#c2410c",
-  external: "#ae3ec9",
+  results: "#1c5cab",
+  corporate: "#11845d",
+  milestone: "#8e2f63",
+  external: "#9a6a00",
 };
 
 export type EventsData = { events: CalendarEvent[]; loading: boolean; error?: string };
