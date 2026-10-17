@@ -85,19 +85,11 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
         </Text>
       </Group>
     );
-  if (!broker.connection)
-    return (
-      <Alert title="No broker connected">
-        Add your Flex token and query ids under Interactive Brokers in the profile menu.
-      </Alert>
-    );
   if (page === "portfolio") {
     if (!built)
       return (
         <Alert title="No statement yet">
-          {broker.connection.last_error
-            ? `The last sync failed: ${broker.connection.last_error}`
-            : "Sync now under Interactive Brokers settings, or wait for the morning sync."}
+          Your agent sends broker statements through the API; the latest one shows here.
         </Alert>
       );
     return <PortfolioPage built={built} items={live!.items} themes={live!.themes} />;
@@ -105,7 +97,7 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
   if (!trades)
     return (
       <Alert title="No trades yet">
-        Add a trades query id under Interactive Brokers settings and sync.
+        Your agent sends your fills through the API; they show here.
       </Alert>
     );
   return <TradesPage trades={trades} pricing={pricing} nav={broker.snapshot?.nav ?? null} />;

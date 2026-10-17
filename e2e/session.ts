@@ -88,7 +88,6 @@ export async function seedSnapshot(session: Session) {
     base_currency: "EUR",
     nav: 200_000,
     cash: -50_000,
-    positions: [],
   });
   if (error) throw new Error(error.message);
 }

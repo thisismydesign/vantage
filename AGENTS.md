@@ -13,7 +13,7 @@ Portfolio manager. Live: https://vantage.personal-553.workers.dev
 ```
 app/                     web app; app/wrangler.jsonc deploys app/dist
 shared/types.ts          shapes shared by app and functions
-supabase/functions/      vantage (API, onboarding), broker-sync, _shared helpers
+supabase/functions/      vantage (API, onboarding), _shared helpers
 supabase/migrations/     schema, policies, grants
 tests/                   node:test specs for _shared
 ```

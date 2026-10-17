@@ -378,10 +378,6 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
-[functions.broker-sync]
-# Verifies sessions and the scheduler key itself.
-verify_jwt = false
-
 [functions.vantage]
 # Public read-only endpoint; the browser calls it without a session.
 verify_jwt = false

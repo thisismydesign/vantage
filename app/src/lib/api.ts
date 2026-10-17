@@ -35,8 +35,6 @@ export const asHistory = (s: IntradaySeries | VantageHistory | undefined) =>
 
 /** The function's base URL; agents and docs hang off it too. */
 export const API_BASE = `${SUPABASE_URL}/functions/v1/vantage`;
-/** The broker sync function. */
-export const BROKER_BASE = `${SUPABASE_URL}/functions/v1/broker-sync`;
 
 async function fetchCharts(range: ChartRange, accessToken?: string): Promise<ChartsResponse> {
   const response = await fetch(`${API_BASE}?range=${range}`, {
@@ -73,18 +71,22 @@ export type ChartData = {
 };
 
 /**
- * One request per range. `cycle` is the time of the last refresh request; a
- * new value refetches. The last good response is kept, in memory and in
+ * One request per range; a null range fetches nothing. `cycle` is the time of
+ * the last refresh request; a new value refetches. The last good response is kept, in memory and in
  * localStorage, so a failed refresh never blanks the charts.
  */
-export function useChartData(range: ChartRange, cycle: number, accessToken?: string): ChartData {
+export function useChartData(
+  range: ChartRange | null,
+  cycle: number,
+  accessToken?: string,
+): ChartData {
   const [state, setState] = useState<ChartData>(() => ({
-    data: readCache(range),
+    data: range ? readCache(range) : undefined,
     status: "loading",
-    updating: true,
+    updating: Boolean(range),
   }));
   useEffect(() => {
-    if (!CONFIGURED) return;
+    if (!CONFIGURED || !range) return;
     let disposed = false;
     setState((previous) => ({
       ...previous,

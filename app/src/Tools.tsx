@@ -48,8 +48,8 @@ function MarginSizingTool() {
   if (!broker.snapshot)
     return (
       <Alert title="No statement yet">
-        This tool starts from your latest broker statement. Connect Interactive Brokers in the
-        profile menu and sync.
+        This tool starts from your latest broker statement. Your agent sends statements through the
+        API.
       </Alert>
     );
   return <MarginSizing snapshot={broker.snapshot} />;

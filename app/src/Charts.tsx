@@ -46,6 +46,7 @@ import {
 import { VantageBar } from "./Header.tsx";
 import { useSession } from "./lib/supabase.ts";
 import { WATCHLIST_CHANGED } from "./Watchlist.tsx";
+import { listQuotes, useHeld, WatchTable } from "./WatchTable.tsx";
 
 const REFRESH_MS = 60_000;
 /** Width of the toolbar's centre column: the search box and the status under it. */
@@ -76,7 +77,7 @@ const RANGES: { value: "1d" | "24h" | "1w" | HistoryRange; label: string }[] = [
   { value: "5y", label: "5Y" },
 ];
 /** What prices are shown in: a base currency, or each name's own. */
-type Display = BaseCurrency | "native";
+export type Display = BaseCurrency | "native";
 
 /** `value` is in the display currency; `native` is the quote as traded. */
 type Point = { date: string; value: number | null; native: number };
@@ -619,7 +620,10 @@ function RefreshRing({
 /** `header` renders Vantage's own bar inline, for hosts without the standalone app shell. */
 export function Charts({ header = true }: { header?: boolean }) {
   const [liveUpdates, setLiveUpdates] = useLocalState("charts:liveUpdates", true);
-  const [compact, setCompact] = useLocalState("charts:compact", true);
+  const [view, setView] = useLocalState<"compact" | "detailed" | "list">("charts:view", "compact");
+  const compact = view === "compact";
+  // The list shows every horizon at once: live 1D prices, the rest fetched beside them.
+  const list = view === "list";
   const [base, setBase] = useLocalState<Display>("charts:base", "EUR");
   const [range, setRange] = useLocalState("charts:range:v2", "24h");
   const [selected, setSelected] = useLocalState<string[]>("charts:tickers", []);
@@ -627,7 +631,7 @@ export function Charts({ header = true }: { header?: boolean }) {
   // Collapsed groups are not remembered: every fresh visit opens with all of them expanded.
   const [collapsedThemes, setCollapsedThemes] = useState<string[]>([]);
 
-  const isIntraday = INTRADAY_RANGES.has(range);
+  const isIntraday = list || INTRADAY_RANGES.has(range);
   // One state change per minute; the per-second countdown lives in RefreshRing.
   const [cycle, setCycle] = useState(() => Date.now());
   useEffect(() => {
@@ -646,15 +650,23 @@ export function Charts({ header = true }: { header?: boolean }) {
     };
   }, [liveUpdates, isIntraday, cycle]);
   const refresh = useCallback(() => setCycle(Date.now()), []);
+  // History is cached for hours upstream, so the list refetches it only when the watchlist changes.
+  const [historyCycle, setHistoryCycle] = useState(() => Date.now());
   useEffect(() => {
-    window.addEventListener(WATCHLIST_CHANGED, refresh);
-    return () => window.removeEventListener(WATCHLIST_CHANGED, refresh);
+    const changed = () => {
+      refresh();
+      setHistoryCycle(Date.now());
+    };
+    window.addEventListener(WATCHLIST_CHANGED, changed);
+    return () => window.removeEventListener(WATCHLIST_CHANGED, changed);
   }, [refresh]);
 
   const activeRange = RANGES.find((r) => r.value === range) ?? RANGES[0];
-  const apiRange: ChartRange = isIntraday ? (range as ChartRange) : "history";
+  const apiRange: ChartRange = list ? "1d" : isIntraday ? (range as ChartRange) : "history";
   const session = useSession();
   const { data, status, updating } = useChartData(apiRange, cycle, session?.access_token);
+  const week = useChartData(list ? "1w" : null, cycle, session?.access_token);
+  const history = useChartData(list ? "history" : null, historyCycle, session?.access_token);
   // A cached response for another range must not render under this one.
   const live = data?.range === apiRange ? data : undefined;
   // The watchlist is the same in every response, so the last one keeps the controls usable.
@@ -682,6 +694,21 @@ export function Charts({ header = true }: { header?: boolean }) {
       ),
     [shown, live, activeRange, isIntraday, base],
   );
+
+  const quotes = useMemo(
+    () =>
+      list
+        ? listQuotes(
+            shown,
+            live,
+            week.data?.range === "1w" ? week.data : undefined,
+            history.data?.range === "history" ? history.data : undefined,
+            base,
+          )
+        : new Map(),
+    [list, shown, live, week.data, history.data, base],
+  );
+  const held = useHeld(items, list);
 
   const groups = useMemo(() => {
     if (!grouped) return [{ id: "all", label: "All", tickers: shown }];
@@ -724,11 +751,12 @@ export function Charts({ header = true }: { header?: boolean }) {
   const viewControl = (
     <SegmentedControl
       size="xs"
-      value={compact ? "compact" : "detailed"}
-      onChange={(value) => setCompact(value === "compact")}
+      value={view}
+      onChange={(value) => setView(value as typeof view)}
       data={[
         { value: "compact", label: "Overview" },
         { value: "detailed", label: "Detailed" },
+        { value: "list", label: "List" },
       ]}
     />
   );
@@ -817,7 +845,7 @@ export function Charts({ header = true }: { header?: boolean }) {
       {mobile ? (
         // Phones: one control per line, widest first, in the order the eye reads.
         <Stack gap="xs">
-          {rangeControl}
+          {!list && rangeControl}
           <Group gap="xs" grow>
             {baseControl}
             {viewControl}
@@ -844,7 +872,7 @@ export function Charts({ header = true }: { header?: boolean }) {
             <Box w={MIDDLE_WIDTH} maw="100%" style={{ justifySelf: "center" }}>
               {search}
             </Box>
-            <Box style={{ justifySelf: "end" }}>{rangeControl}</Box>
+            <Box style={{ justifySelf: "end" }}>{!list && rangeControl}</Box>
           </Box>
           <Box style={TOOLBAR_ROW}>
             {/* The 4px inset lines the switch up with the active pill of the control above. */}
@@ -901,25 +929,34 @@ export function Charts({ header = true }: { header?: boolean }) {
                 </Badge>
               </Group>
               <Collapse expanded={!shut}>
-                <SimpleGrid
-                  cols={compact ? { base: 1, sm: 2, md: 3, lg: 4, xl: 5 } : 1}
-                  spacing="xs"
-                  verticalSpacing="xs"
-                >
-                  {g.tickers.map((t) => (
-                    <TickerChart
-                      key={t}
-                      ticker={t}
-                      item={itemByTicker.get(t)}
-                      session={isIntraday ? asSession(live.series[t]) : undefined}
-                      asOf={live.asOf}
-                      compact={compact}
-                      range={activeRange.value}
-                      saved={savedPoints.get(t) ?? EMPTY}
-                      base={base}
-                    />
-                  ))}
-                </SimpleGrid>
+                {list ? (
+                  <WatchTable
+                    tickers={g.tickers}
+                    itemByTicker={itemByTicker}
+                    quotes={quotes}
+                    held={held}
+                  />
+                ) : (
+                  <SimpleGrid
+                    cols={compact ? { base: 1, sm: 2, md: 3, lg: 4, xl: 5 } : 1}
+                    spacing="xs"
+                    verticalSpacing="xs"
+                  >
+                    {g.tickers.map((t) => (
+                      <TickerChart
+                        key={t}
+                        ticker={t}
+                        item={itemByTicker.get(t)}
+                        session={isIntraday ? asSession(live.series[t]) : undefined}
+                        asOf={live.asOf}
+                        compact={compact}
+                        range={activeRange.value}
+                        saved={savedPoints.get(t) ?? EMPTY}
+                        base={base}
+                      />
+                    ))}
+                  </SimpleGrid>
+                )}
               </Collapse>
             </Paper>
           );

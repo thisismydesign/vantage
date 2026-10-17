@@ -21,13 +21,6 @@ import { useCallback, useEffect, useState } from "react";
 import { AgentKeys } from "./AgentKeys.tsx";
 import type { ChartItem, ChartTheme } from "./lib/api.ts";
 import { API_BASE } from "./lib/api.ts";
-import {
-  BROKER_CHANGED,
-  removeConnection,
-  saveConnection,
-  syncNow,
-  type Connection,
-} from "./lib/broker.ts";
 import { lookupSymbols, supabase, useSession, type SymbolMatch } from "./lib/supabase.ts";
 
 /** Fired on `window` after any watchlist edit, so open charts refetch. */
@@ -396,141 +389,8 @@ function Editor({ accessToken }: { accessToken: string }) {
   );
 }
 
-/** Interactive Brokers: Flex token and the two query ids, with sync and status. */
-function BrokerSettings({ accessToken }: { accessToken: string }) {
-  const [connection, setConnection] = useState<Connection | null>(null);
-  const [token, setToken] = useState("");
-  const [positionsQueryId, setPositionsQueryId] = useState("");
-  const [tradesQueryId, setTradesQueryId] = useState("");
-  const [busy, setBusy] = useState<"save" | "sync" | "remove" | null>(null);
-  const [message, setMessage] = useState<string>();
-  const [error, setError] = useState<string>();
-  const load = useCallback(async () => {
-    const { data } = await supabase!
-      .from("broker_connections")
-      .select("positions_query_id,trades_query_id,last_synced_at,last_statement_date,last_error")
-      .maybeSingle();
-    const c = (data as Connection | null) ?? null;
-    setConnection(c);
-    if (c) {
-      setPositionsQueryId(c.positions_query_id);
-      setTradesQueryId(c.trades_query_id ?? "");
-    }
-  }, []);
-  useEffect(() => {
-    void load();
-  }, [load]);
-  const act = async (kind: "save" | "sync" | "remove", fn: () => Promise<unknown>) => {
-    setBusy(kind);
-    setError(undefined);
-    setMessage(undefined);
-    try {
-      const result = (await fn()) as Record<string, unknown> | undefined;
-      if (kind === "sync" && result)
-        setMessage(
-          `Synced the ${String(result.statementDate)} statement: ${String(result.positions)} positions, ${String(result.fills)} fills.`,
-        );
-      if (kind === "save") setMessage("Saved.");
-      if (kind === "remove") setMessage("Disconnected.");
-      setToken("");
-      await load();
-      window.dispatchEvent(new Event(BROKER_CHANGED));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  };
-  return (
-    <Stack gap="xs">
-      <Text size="xs" c="dimmed">
-        Flex Web Service. The positions query needs Open Positions, Net Asset Value and Cash Report;
-        the trades query needs Trades at execution level.
-      </Text>
-      {connection && (
-        <Text size="xs" c={connection.last_error ? "red" : "dimmed"}>
-          {connection.last_error
-            ? `Last sync failed: ${connection.last_error}`
-            : connection.last_statement_date
-              ? `Last statement ${connection.last_statement_date}, synced ${connection.last_synced_at?.slice(0, 16).replace("T", " ")}`
-              : "Connected, not synced yet."}
-        </Text>
-      )}
-      {error && (
-        <Text size="xs" c="red">
-          {error}
-        </Text>
-      )}
-      {message && <Text size="xs">{message}</Text>}
-      <TextInput
-        size="xs"
-        label="Flex token"
-        type="password"
-        autoComplete="off"
-        placeholder={connection ? "Stored — enter a new one to replace it" : ""}
-        value={token}
-        onChange={(e) => setToken(e.currentTarget.value)}
-      />
-      <Group gap="xs" grow>
-        <TextInput
-          size="xs"
-          label="Positions query id"
-          value={positionsQueryId}
-          onChange={(e) => setPositionsQueryId(e.currentTarget.value)}
-        />
-        <TextInput
-          size="xs"
-          label="Trades query id"
-          value={tradesQueryId}
-          onChange={(e) => setTradesQueryId(e.currentTarget.value)}
-        />
-      </Group>
-      <Group gap="xs">
-        <Button
-          size="xs"
-          loading={busy === "save"}
-          disabled={busy !== null || !positionsQueryId.trim() || (!connection && !token.trim())}
-          onClick={() =>
-            void act("save", () =>
-              saveConnection(accessToken, {
-                token: token.trim() || undefined,
-                positionsQueryId: positionsQueryId.trim(),
-                tradesQueryId: tradesQueryId.trim() || undefined,
-              }),
-            )
-          }
-        >
-          Save
-        </Button>
-        <Button
-          size="xs"
-          variant="default"
-          loading={busy === "sync"}
-          disabled={busy !== null || !connection}
-          onClick={() => void act("sync", () => syncNow(accessToken))}
-        >
-          Sync now
-        </Button>
-        {connection && (
-          <Button
-            size="xs"
-            variant="light"
-            color="red"
-            loading={busy === "remove"}
-            disabled={busy !== null}
-            onClick={() => void act("remove", () => removeConnection(accessToken))}
-          >
-            Disconnect
-          </Button>
-        )}
-      </Group>
-    </Stack>
-  );
-}
-
 const SETTINGS = [
   { value: "watchlist", label: "Watchlist" },
-  { value: "ibkr", label: "Interactive Brokers" },
   { value: "keys", label: "Agent keys" },
 ] as const;
 type SettingsTab = (typeof SETTINGS)[number]["value"];
@@ -561,9 +421,6 @@ function SettingsModal({
         </Tabs.List>
         <Tabs.Panel value="watchlist">
           <Editor accessToken={accessToken} />
-        </Tabs.Panel>
-        <Tabs.Panel value="ibkr">
-          <BrokerSettings accessToken={accessToken} />
         </Tabs.Panel>
         <Tabs.Panel value="keys">
           <AgentKeys />
