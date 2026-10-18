@@ -356,9 +356,9 @@ export function CalendarPage() {
         <Text size="sm" c="dimmed">
           Nothing on the calendar yet. Your agent records events through the API; the{" "}
           <Anchor href={`${API_BASE}/agent`} target="_blank" rel="noreferrer" size="sm">
-            brief
+            agent instructions
           </Anchor>{" "}
-          explains how.
+          explain how.
         </Text>
       )}
       <Group gap="xs">

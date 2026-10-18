@@ -123,9 +123,9 @@ export function NewsPage() {
         <Text size="sm" c="dimmed">
           No news yet. Your agent records items through the API; the{" "}
           <Anchor href={`${API_BASE}/agent`} target="_blank" rel="noreferrer" size="sm">
-            brief
+            agent instructions
           </Anchor>{" "}
-          explains how.
+          explain how.
         </Text>
       )}
       {days.map(([day, list]) => (

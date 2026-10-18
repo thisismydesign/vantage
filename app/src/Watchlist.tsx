@@ -32,20 +32,16 @@ const slug = (label: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-/** The onboarding brief in a small copyable field. */
+/** What the user pastes to their agent; the instructions themselves live at /agent. */
+const ONBOARD_PROMPT = `Set up Vantage for me: fetch ${API_BASE}/agent and follow its instructions.`;
+
+/** The onboarding prompt in a small copyable field. */
 function AgentOnboarding() {
-  const [brief, setBrief] = useState<string>();
   const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    void fetch(`${API_BASE}/agent`)
-      .then((r) => r.text())
-      .then(setBrief)
-      .catch(() => setBrief("Could not load the instructions."));
-  }, []);
   return (
     <Stack gap="xs">
       <Textarea
-        value={brief ?? "Loading…"}
+        value={ONBOARD_PROMPT}
         readOnly
         rows={4}
         size="xs"
@@ -53,9 +49,8 @@ function AgentOnboarding() {
       />
       <Button
         size="xs"
-        disabled={!brief}
         onClick={() => {
-          void navigator.clipboard.writeText(brief ?? "");
+          void navigator.clipboard.writeText(ONBOARD_PROMPT);
           setCopied(true);
         }}
       >

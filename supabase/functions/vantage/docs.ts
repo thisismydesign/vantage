@@ -1,8 +1,5 @@
-// What an agent reads to work with Vantage: the onboarding brief and the API description.
+// What an agent reads to work with Vantage: the instructions in agent.md and the API description.
 // Edits go through Supabase's own REST layer, which describes its tables itself.
-
-import { EVENT_CATEGORIES } from "../_shared/events.ts";
-import { NEWS_SENTIMENTS } from "../_shared/news.ts";
 
 export const SITE = "https://vantage.personal-553.workers.dev";
 
@@ -24,38 +21,19 @@ export const endpoints = (e: Endpoints) => ({
   rest: `${e.supabase}/rest/v1`,
   restOpenapi: `${e.base}/rest-openapi.json`,
   openapi: `${e.base}/openapi.json`,
-  brief: `${e.base}/agent`,
+  instructions: `${e.base}/agent`,
   anonKey: e.anonKey,
   site: SITE,
 });
 
-export function agentBrief(e: Endpoints) {
-  const u = endpoints(e);
-  // One paragraph per line: agents and copy-paste both cope better without soft wraps.
-  return [
-    "# Set up Vantage for me",
-    "",
-    `You are my assistant. Vantage (${SITE}) shows live price charts for a watchlist of companies arranged in groups. Create my account and watchlist through its API, and keep the credentials so you can change the watchlist later when I ask.`,
-    "",
-    "1. Ask me for my email address, and whether I want Vantage's default groups and companies or my own. If my own, ask which groups and which companies go in each, and send only those.",
-    "",
-    `2. POST ${u.onboard} with JSON {"email", "defaults": true|false, "groups", "items"}. The exact shapes are in the API description at ${u.openapi}. The response includes "session": store its refresh_token durably and tell me where.`,
-    "",
-    "3. Tell me to check my email and open the sign-in link. My watchlist will be ready when the page opens.",
-    "",
-    `Later, when I ask for changes: trade the refresh token for an access token at ${u.tokenRefresh} (header apikey: ${e.anonKey}); the reply holds a new refresh token, so store it and discard the old one every time. My data lives in the Supabase REST API at ${u.rest}, described at ${u.restOpenapi}: the tables watchlist and watchlist_themes, events (my calendar), news, and my broker data in portfolio_snapshots, snapshot_positions, nav_history and trade_fills. Every call needs the headers apikey: ${e.anonKey} and Authorization: Bearer <access_token>.`,
-    "",
-    `Calendar: when I mention a dated thing about a company I follow (earnings, dividend, launch, conference, ruling), record it: POST ${u.rest}/events?on_conflict=owner,external_id with header Prefer: resolution=merge-duplicates and a JSON row {ticker, category, kind, title, description, starts_on, ends_on, estimated, source, url, external_id}. category is one of ${EVENT_CATEGORIES.join(", ")}; kind is the specific word (earnings, dividend, launch…); external_id is a stable id you choose, so re-sending updates instead of duplicating. The ticker must already be on my watchlist.`,
-    "",
-    `News: when I share an article about a company I follow, or you find one worth keeping, record it: POST ${u.rest}/news?on_conflict=owner,external_id with header Prefer: resolution=merge-duplicates and a JSON row {ticker, published_at, source, title, description, url, sentiment, expected, external_id}. sentiment is your read, one of ${NEWS_SENTIMENTS.join(", ")}; expected is true when the market had it priced in. Same rules for ticker and external_id as the calendar.`,
-    "",
-    `Broker data: if you fetch my broker statements, send each day's statement to POST ${u.rest}/rpc/put_portfolio_snapshot as {"snapshot": {as_of, account_id, base_currency, nav, cash}, "positions": [{account_id, symbol, description, asset_category, currency, quantity, mark_price, position_value, cost_basis, unrealized_pnl, fx_rate_to_base}]}; it replaces that day's holdings, so send them all. Send the account's value per day (IBKR's Net Asset Value section, which covers the statement's whole period) to POST ${u.rest}/nav_history?on_conflict=owner,as_of with header Prefer: resolution=merge-duplicates, as rows {as_of, account_id, base_currency, nav, cash}; send as many past days as the statement holds, and re-sending a day updates it. Send fills to POST ${u.rest}/trade_fills?on_conflict=owner,id with header Prefer: resolution=merge-duplicates, as rows {id, traded_at, account_id, conid, order_id, symbol, description, asset_category, currency, side, quantity, price, multiplier, proceeds, commission, net_cash, fx_rate_to_base, broker_pnl, open_close}. id is the broker's trade id; traded_at is the exchange's local time without a zone; side is buy or sell; quantity is negative on a sell; amounts are in the trade's currency, and fx_rate_to_base converts them to my base currency.`,
-    "",
-    "Onboarding only creates new accounts. If my email already has one, the API answers 409 and I sign in on the site myself.",
-    "",
-    `If I hand you an agent key instead (I make them under Agent keys in my profile menu), skip onboarding: POST ${u.token} with header Authorization: Bearer <key>. The reply holds a session; use its access_token until expires_at, then exchange the key again. Keep the key safe; I can revoke it.`,
-    "",
-  ].join("\n");
+/** The agent instructions in agent.md, with this deployment's URLs filled in. */
+export async function agentInstructions(e: Endpoints) {
+  const values: Record<string, string> = endpoints(e);
+  const template = await Deno.readTextFile(new URL("./agent.md", import.meta.url));
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+    if (!(key in values)) throw new Error(`agent.md: unknown placeholder {{${key}}}`);
+    return values[key];
+  });
 }
 
 export function openapi(e: Endpoints) {
@@ -76,51 +54,14 @@ export function openapi(e: Endpoints) {
     },
     required: ["ticker"],
   };
-  const event = {
-    type: "object",
-    description: "A row of the events table; write it through the REST API, not this function",
-    properties: {
-      ticker: { type: "string", description: "A ticker on the owner's watchlist" },
-      category: { type: "string", enum: [...EVENT_CATEGORIES] },
-      kind: { type: "string", description: "The specific thing: earnings, dividend, launch…" },
-      title: { type: "string" },
-      description: { type: "string" },
-      starts_on: { type: "string", format: "date" },
-      ends_on: { type: "string", format: "date", description: "Inclusive; omit for one day" },
-      estimated: { type: "boolean", description: "The date is not confirmed by the company" },
-      source: { type: "string" },
-      url: { type: "string" },
-      external_id: {
-        type: "string",
-        description: "Caller-chosen stable id; upsert on (owner, external_id)",
-      },
-    },
-    required: ["ticker", "category", "title", "starts_on"],
-  };
-  const news = {
-    type: "object",
-    description: "A row of the news table; write it through the REST API, not this function",
-    properties: {
-      ticker: { type: "string", description: "A ticker on the owner's watchlist" },
-      published_at: { type: "string", format: "date-time" },
-      source: { type: "string", description: "Publisher or who said it" },
-      title: { type: "string" },
-      description: { type: "string", description: "Summary, or the reasoning behind the read" },
-      url: { type: "string" },
-      sentiment: { type: "string", enum: [...NEWS_SENTIMENTS] },
-      expected: { type: "boolean", description: "The market had it priced in" },
-      external_id: {
-        type: "string",
-        description: "Caller-chosen stable id; upsert on (owner, external_id)",
-      },
-    },
-    required: ["ticker", "published_at", "title"],
-  };
   const session = {
     type: "object",
     properties: {
       access_token: { type: "string" },
-      refresh_token: { type: "string", description: "Store it; each use returns a replacement" },
+      refresh_token: {
+        type: "string",
+        description: "Store it durably; each refresh returns a replacement to use next time",
+      },
       expires_at: { type: "integer", description: "Unix seconds" },
     },
   };
@@ -129,11 +70,10 @@ export function openapi(e: Endpoints) {
     info: {
       title: "Vantage API",
       version: "2",
-      description:
-        "Onboarding and prices for Vantage. Watchlist, calendar and news edits go through the Supabase REST API with a session token; see externalDocs for its generated description and the agent brief for the full flow.",
+      description: `Accounts, sessions and prices. The user's data (watchlist, calendar, news, broker account) is read and written through the Supabase REST API at ${u.rest}, described at ${u.restOpenapi}, with a session.`,
     },
     externalDocs: {
-      description: "Supabase's generated description of the watchlist, events and news tables",
+      description: "The user's data tables",
       url: u.restOpenapi,
     },
     servers: [{ url: e.base }],
@@ -147,10 +87,10 @@ export function openapi(e: Endpoints) {
         session: {
           type: "http",
           scheme: "bearer",
-          description: `A Supabase access token. Refresh at ${u.tokenRefresh} with the apikey header.`,
+          description: `A Supabase access token, valid until the session's expires_at. Refresh it: POST ${u.tokenRefresh} with header apikey: ${e.anonKey} and JSON {"refresh_token"}.`,
         },
       },
-      schemas: { Group: group, Item: item, Event: event, News: news, Session: session },
+      schemas: { Group: group, Item: item, Session: session },
     },
     paths: {
       "/": {
@@ -205,7 +145,7 @@ export function openapi(e: Endpoints) {
           responses: {
             "201": {
               description:
-                "Account created; a session for the agent and a sign-in email for the human",
+                "Account created: a session for the agent, and a sign-in email sent to the user",
               content: {
                 "application/json": {
                   schema: {
@@ -221,7 +161,10 @@ export function openapi(e: Endpoints) {
                 },
               },
             },
-            "409": { description: "The email already has an account" },
+            "409": {
+              description:
+                "The email already has an account: the user signs in on the site and can make an agent key there",
+            },
           },
         },
       },
@@ -231,7 +174,7 @@ export function openapi(e: Endpoints) {
           security: [{ agentKey: [] }],
           responses: {
             "200": {
-              description: "A session for the key's owner",
+              description: "A session for the key's owner; exchange the key again once it expires",
               content: {
                 "application/json": {
                   schema: {
@@ -257,7 +200,7 @@ export function openapi(e: Endpoints) {
       },
       "/agent": {
         get: {
-          summary: "The onboarding brief to paste to an agent",
+          summary: "Instructions for an agent working with Vantage",
           responses: { "200": { description: "Markdown" } },
         },
       },

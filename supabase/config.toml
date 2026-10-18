@@ -381,6 +381,8 @@ allow_dynamic_registration = false
 [functions.vantage]
 # Public read-only endpoint; the browser calls it without a session.
 verify_jwt = false
+# Deploys bundle only code; agent.md is read at runtime.
+static_files = ["./functions/vantage/agent.md"]
 
 [edge_runtime]
 enabled = true

@@ -4,7 +4,7 @@
 //   GET  /?lookup=<query>            symbol search (needs a session)
 //   POST /onboard                    create an account for an email; returns a session
 //   POST /token                      exchange an agent key for a session
-//   GET  /agent (brief for an agent), GET /openapi.json
+//   GET  /agent (instructions for an agent, from agent.md), GET /openapi.json
 //
 // Watchlist edits are not here: callers use Supabase's REST layer with their
 // session, and row security scopes them to their own rows.
@@ -19,7 +19,7 @@ import { buildRanges, HISTORY_RANGES, RANGE_SOURCE, thin } from "../_shared/hist
 import type { HistoryRange, RangeSeries } from "../../../shared/types.ts";
 import { KEY_PREFIX, sha256Hex } from "../_shared/keys.ts";
 import { resolveCaller, type Caller } from "./auth.ts";
-import { agentBrief, endpoints, openapi, SITE, type Endpoints } from "./docs.ts";
+import { agentInstructions, endpoints, openapi, SITE, type Endpoints } from "./docs.ts";
 import {
   addGroup,
   addItem,
@@ -520,9 +520,9 @@ async function onboard(body: OnboardBody, api: Endpoints, ip: string) {
 
 /**
  * Supabase only hands its generated REST description to the service role, so
- * relay it, trimmed to the tables a session may touch.
+ * relay it, trimmed to the tables a session may touch, with the auth it omits.
  */
-async function restOpenapi() {
+async function restOpenapi(api: Endpoints) {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -549,8 +549,35 @@ async function restOpenapi() {
     ...spec,
     paths: pick(spec.paths, (k) => k.replace(/^\//, "")),
     definitions: pick(spec.definitions, (k) => k),
+  const u = endpoints(api);
+  const rest = new URL(u.rest);
   };
 }
+    // PostgREST describes itself from inside the stack; callers go through the gateway.
+    host: rest.host,
+    basePath: rest.pathname,
+    schemes: [rest.protocol.replace(":", "")],
+    info: {
+      title: "Vantage data",
+      version: "1",
+      description:
+        "The user's own rows. Upsert with POST ?on_conflict=<the table's upsert columns> and header Prefer: resolution=merge-duplicates.",
+    },
+    securityDefinitions: {
+      apikey: {
+        type: "apiKey",
+        in: "header",
+        name: "apikey",
+        description: `Always ${api.anonKey}`,
+      },
+      session: {
+        type: "apiKey",
+        in: "header",
+        name: "Authorization",
+        description: `Bearer <access_token>; see ${u.openapi} for getting a session`,
+      },
+    },
+    security: [{ apikey: [], session: [] }],
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -578,9 +605,9 @@ Deno.serve(async (request) => {
 
   try {
     if (route === "/agent" && method === "GET")
-      return text(agentBrief(api), "text/markdown; charset=utf-8");
+      return text(await agentInstructions(api), "text/markdown; charset=utf-8");
     if (route === "/openapi.json" && method === "GET") return json(openapi(api));
-    if (route === "/rest-openapi.json" && method === "GET") return json(await restOpenapi());
+    if (route === "/rest-openapi.json" && method === "GET") return json(await restOpenapi(api));
     if (route === "/onboard" && method === "POST") {
       const body = ((await request.json().catch(() => ({}))) ?? {}) as OnboardBody;
       return await onboard(body, api, clientIp(request));

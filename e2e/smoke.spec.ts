@@ -19,11 +19,11 @@ test("signs in the test user", async ({ page }) => {
   await expect(page.getByText(TEST_EMAIL)).toBeVisible();
 });
 
-test("serves the agent brief, the API description and prices", async ({ request }) => {
+test("serves the agent instructions, the API description and prices", async ({ request }) => {
   const headers = { apikey: ANON_KEY ?? "" };
-  const brief = await request.get(`${API}/agent`, { headers });
-  expect(brief.ok()).toBe(true);
-  expect(await brief.text()).toContain("Set up Vantage");
+  const instructions = await request.get(`${API}/agent`, { headers });
+  expect(instructions.ok()).toBe(true);
+  expect(await instructions.text()).toContain("# Vantage for agents");
   const openapi = await request.get(`${API}/openapi.json`, { headers });
   expect(openapi.ok()).toBe(true);
   expect((await openapi.json()).openapi).toBeTruthy();
