@@ -11,5 +11,5 @@
     "lib": ["ES2023"],
     "types": ["node"]
   },
-  "include": ["shared/**/*.ts", "tests/**/*.ts", "e2e/**/*.ts", "playwright.config.ts", "supabase/functions/_shared/**/*.ts", "supabase/seed/*.ts"]
+  "include": ["shared/**/*.ts", "tests/**/*.ts", "e2e/**/*.ts", "playwright.config.ts", "supabase/functions/_shared/**/*.ts"]
 }
