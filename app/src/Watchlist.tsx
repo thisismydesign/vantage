@@ -130,8 +130,7 @@ function SignInForm() {
 }
 
 function Editor({ accessToken }: { accessToken: string }) {
-  // The editor reads the tables directly (RLS lets a signed-in user), so it
-  // works from the header without the chart data in scope.
+  // The editor reads the tables directly (RLS lets a signed-in user), so it works from the header without the chart data in scope.
   const [items, setItems] = useState<ChartItem[]>([]);
   const [themes, setThemes] = useState<ChartTheme[]>([]);
   const load = useCallback(async () => {

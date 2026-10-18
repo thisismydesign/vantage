@@ -54,10 +54,7 @@ export function intradayRange(
       ?.filter((p) => Date.parse(p.end) >= now - 86_400_000 && Date.parse(p.start) <= now)
       .map((p) => [p.start, p.end]);
   } else if (range === "1d") {
-    // 1D is the latest session with data: today once the first bar prints,
-    // otherwise the previous session, so Asian listings do not blank out
-    // after their midnight. The feed's previousClose then refers to that
-    // displayed session, so the baseline comes from the bar before it.
+    // 1D is the latest session with data: today once the first bar prints, otherwise the previous session, so Asian listings do not blank out after their midnight. The feed's previousClose then refers to that displayed session, so the baseline comes from the bar before it.
     const day = new Intl.DateTimeFormat("en-CA", { timeZone: series.timeZone });
     if (series.session && series.session < day.format(now)) {
       const prior = chart.quotes

@@ -1,5 +1,4 @@
-// News: what the owner's agent recorded about the companies they follow,
-// newest first, one group per day, filterable by company.
+// News: what the owner's agent recorded about the companies they follow, newest first, one group per day, filterable by company.
 
 import {
   Alert,

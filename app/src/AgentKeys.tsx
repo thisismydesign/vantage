@@ -1,5 +1,4 @@
-// Agent keys: the owner makes one per agent and hands it over; a cold agent
-// trades it for a session. The key is generated and hashed here, shown once.
+// Agent keys: the owner makes one per agent and hands it over; a cold agent trades it for a session. The key is generated and hashed here, shown once.
 
 import {
   Alert,

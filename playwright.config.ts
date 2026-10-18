@@ -1,8 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
-// E2E_BASE_URL points at a deployed site (the production smoke test) and reads
-// .env; without it a preview build runs against the local stack. CI passes the
-// same names as env vars.
+// E2E_BASE_URL points at a deployed site (the production smoke test) and reads .env; without it a preview build runs against the local stack. CI passes the same names as env vars.
 const base = process.env.E2E_BASE_URL;
 try {
   process.loadEnvFile(base ? ".env" : ".env.development");
@@ -12,8 +10,7 @@ try {
 
 export default defineConfig({
   testDir: "e2e",
-  // One worker: every signed-in spec mints a token for the same test user, and a
-  // newer token invalidates the one before it.
+  // One worker: every signed-in spec mints a token for the same test user, and a newer token invalidates the one before it.
   workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",

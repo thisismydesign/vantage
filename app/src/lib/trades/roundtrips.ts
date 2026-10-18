@@ -7,8 +7,7 @@ const daysBetween = (a: string, b: string) =>
   Math.max(0, Math.round((Date.parse(b.slice(0, 10)) - Date.parse(a.slice(0, 10))) / DAY));
 
 /**
- * A fill that crosses zero closes one trade and opens the next. The fill is
- * split pro rata, so each trade sees only the quantity that belongs to it.
+ * A fill that crosses zero closes one trade and opens the next. The fill is split pro rata, so each trade sees only the quantity that belongs to it.
  */
 function split(fill: TradeFill, quantity: number): [TradeFill, TradeFill] {
   const share = quantity / fill.quantity;
@@ -63,11 +62,7 @@ function finish(
 
   const closed = Math.abs(open.position) < EPS;
   const pnl = open.fills.reduce((s, f) => s + f.netCash, 0);
-  // Foreign stock is bought on a loan in that currency, so the currency's move
-  // while the position is held cancels against the loan. Converting the whole
-  // result at the exit rate scores the stock decision alone; the entry side is
-  // converted fill by fill because that is what the money was worth when
-  // committed.
+  // Foreign stock is bought on a loan in that currency, so the currency's move while the position is held cancels against the loan. Converting the whole result at the exit rate scores the stock decision alone; the entry side is converted fill by fill because that is what the money was worth when committed.
   const pnlBase = toBase(last, pnl);
   const entryValueBase = notionalBase(entries);
   const brokerPnls = open.fills.map((f) => f.brokerPnl).filter((v): v is number => v !== null);
@@ -102,8 +97,7 @@ function finish(
 }
 
 /**
- * Walks the fills in time order and cuts them into flat-to-flat trades per
- * instrument. Fills must already be deduplicated.
+ * Walks the fills in time order and cuts them into flat-to-flat trades per instrument. Fills must already be deduplicated.
  */
 export function buildRoundTrips(
   fills: TradeFill[],

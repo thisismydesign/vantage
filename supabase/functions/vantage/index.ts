@@ -6,11 +6,9 @@
 //   POST /token                      exchange an agent key for a session
 //   GET  /agent (instructions for an agent, from agent.md), GET /openapi.json
 //
-// Watchlist edits are not here: callers use Supabase's REST layer with their
-// session, and row security scopes them to their own rows.
+// Watchlist edits are not here: callers use Supabase's REST layer with their session, and row security scopes them to their own rows.
 //
-// Series are cached per quote symbol in chart_cache; only symbols missing or
-// older than the range's TTL go to Yahoo, and the result is written back.
+// Series are cached per quote symbol in chart_cache; only symbols missing or older than the range's TTL go to Yahoo, and the result is written back.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { intradayRange, type Chart } from "../_shared/intraday.ts";
@@ -44,8 +42,7 @@ const CORS = {
 type CacheRow = { symbol: string; range: string; fetched_at: string; data: unknown };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-// The key the browser and agents send. The runtime's SUPABASE_ANON_KEY is the
-// new publishable key; VANTAGE_ANON_KEY pins the one the project accepts.
+// The key the browser and agents send. The runtime's SUPABASE_ANON_KEY is the new publishable key; VANTAGE_ANON_KEY pins the one the project accepts.
 const ANON_KEY = Deno.env.get("VANTAGE_ANON_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 const db = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false },
@@ -77,8 +74,7 @@ async function yahooChart(
   const closes: (number | null)[] = (result.indicators?.quote?.[0]?.close ?? []).map(scale);
   const regular = result.meta?.currentTradingPeriod?.regular;
   const iso = (seconds: number) => new Date(seconds * 1000).toISOString();
-  // tradingPeriods is pre/regular/post arrays per day, or just the regular
-  // days. Merge whatever touches into one open stretch per day.
+  // tradingPeriods is pre/regular/post arrays per day, or just the regular days. Merge whatever touches into one open stretch per day.
   type Period = { start: number; end: number };
   const raw = result.meta?.tradingPeriods;
   const periods: Period[] = (
@@ -156,8 +152,7 @@ async function fxRates(currency: string, range: Range) {
   const symbol = `${currency}=X`;
   const now = Date.now();
   if (range === "history") {
-    // Hourly bars convert at their day's rate: a date key sorts before the
-    // times of that day, so the daily book serves them too.
+    // Hourly bars convert at their day's rate: a date key sorts before the times of that day, so the daily book serves them too.
     const daily = closes(
       await yahooChart(symbol, { from: now - DAILY_DAYS * DAY_MS, interval: "1d" }),
     );
@@ -307,8 +302,7 @@ async function prices(range: Range, list: Awaited<ReturnType<typeof loadList>>) 
       ? history(symbol)
       : (intraday(symbol, range) as Promise<unknown> as Promise<Record<string, unknown>>),
   );
-  // Rates for every currency the fresh series quote in, plus the bases. Cached
-  // under fx:<currency> with the range's TTL, so a stale rate row refreshes too.
+  // Rates for every currency the fresh series quote in, plus the bases. Cached under fx:<currency> with the range's TTL, so a stale rate row refreshes too.
   const fresh = fetched.flatMap((r) =>
     r.status === "fulfilled" ? [r.value as Record<string, unknown>] : [],
   );
@@ -399,8 +393,7 @@ async function throttled(ip: string, route: string, perHour: number) {
 }
 
 /**
- * A session for an existing user: a sign-in token minted with admin rights
- * and verified at once, the same session a magic link would create.
+ * A session for an existing user: a sign-in token minted with admin rights and verified at once, the same session a magic link would create.
  */
 async function mintSession(email: string) {
   const link = await db.auth.admin.generateLink({ type: "magiclink", email });
@@ -451,9 +444,7 @@ type OnboardBody = {
 };
 
 /**
- * New accounts only: an existing email never yields a session to an anonymous
- * caller. The agent's session comes from a sign-in token minted with admin
- * rights and verified at once, the same session a magic link would create.
+ * New accounts only: an existing email never yields a session to an anonymous caller. The agent's session comes from a sign-in token minted with admin rights and verified at once, the same session a magic link would create.
  */
 const ONBOARD_LIMIT = { perHour: 5 };
 
@@ -461,8 +452,7 @@ async function onboard(body: OnboardBody, api: Endpoints, ip: string) {
   const email = body.email?.trim().toLowerCase();
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
     return json({ error: "A valid email is required." }, 400);
-  // Public endpoint: a few accounts an hour per address is plenty for a person
-  // and their agent, and starves anyone trying to flood the user table.
+  // Public endpoint: a few accounts an hour per address is plenty for a person and their agent, and starves anyone trying to flood the user table.
   if (await throttled(ip, "onboard", ONBOARD_LIMIT.perHour))
     return json({ error: "Too many sign-ups from this address. Try again in an hour." }, 429);
   const { data: created, error } = await db.auth.admin.createUser({ email, email_confirm: true });
@@ -519,8 +509,7 @@ async function onboard(body: OnboardBody, api: Endpoints, ip: string) {
 }
 
 /**
- * Supabase only hands its generated REST description to the service role, so
- * relay it, trimmed to the tables a session may touch, with the auth it omits.
+ * Supabase only hands its generated REST description to the service role, so relay it, trimmed to the tables a session may touch, with the auth it omits.
  */
 async function restOpenapi(api: Endpoints) {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

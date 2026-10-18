@@ -138,8 +138,7 @@ function ChangeCell({ value }: { value: number | null | undefined }) {
   );
 }
 
-// One table per group, so widths are pinned and the layout fixed — otherwise
-// each group sizes its columns independently and nothing lines up down the page.
+// One table per group, so widths are pinned and the layout fixed — otherwise each group sizes its columns independently and nothing lines up down the page.
 export function WatchTable({
   tickers,
   itemByTicker,
@@ -166,8 +165,7 @@ export function WatchTable({
                 {h.label}
               </Table.Th>
             ))}
-            {/* Soaks up the leftover width so the numbers stay next to the names
-                instead of being pushed to the far edge. */}
+            {/* Soaks up the leftover width so the numbers stay next to the names instead of being pushed to the far edge. */}
             <Table.Th />
           </Table.Tr>
         </Table.Thead>
@@ -201,8 +199,7 @@ export function WatchTable({
                   </Text>
                 </Table.Td>
                 <Table.Td ta="right">
-                  {/* Cents matter on a EUR30 stock, not on a KRW1.7m one, where
-                      they only make the cell wrap. */}
+                  {/* Cents matter on a EUR30 stock, not on a KRW1.7m one, where they only make the cell wrap. */}
                   {quote?.price != null ? (
                     quote.currency ? (
                       money(quote.price, quote.currency, quote.price >= 1000 ? 0 : 2)

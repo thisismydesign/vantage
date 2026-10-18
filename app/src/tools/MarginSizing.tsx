@@ -1,6 +1,4 @@
-// Margin bet sizing from the latest broker snapshot. The statement gives net
-// liquidation and cash; the broker's maintenance requirement is not in it, so a
-// flat rate on the existing book stands in, and everything else follows.
+// Margin bet sizing from the latest broker snapshot. The statement gives net liquidation and cash; the broker's maintenance requirement is not in it, so a flat rate on the existing book stands in, and everything else follows.
 
 import { LineChart } from "@mantine/charts";
 import {

@@ -1,7 +1,5 @@
 /**
- * Horizons for the history ranges. The backend cuts each one from the raw
- * series and thins it so every chart shows about the same number of points;
- * the client only places what it gets on a real-time axis.
+ * Horizons for the history ranges. The backend cuts each one from the raw series and thins it so every chart shows about the same number of points; the client only places what it gets on a real-time axis.
  */
 import type { HistoryRange } from "../../../shared/types.ts";
 
@@ -31,9 +29,7 @@ export function windowStart(range: HistoryRange, end: number): number {
 }
 
 /**
- * When a bar's close printed. Intraday keys are the bar's time. A daily close
- * is dated its day and sits at the end of it; a weekly close is dated its
- * Monday and lands on Friday.
+ * When a bar's close printed. Intraday keys are the bar's time. A daily close is dated its day and sits at the end of it; a weekly close is dated its Monday and lands on Friday.
  */
 export function closeTime(key: string, bars: Bars): number {
   const t = Date.parse(key);
@@ -49,9 +45,7 @@ export function thin<T>(points: T[], target = TARGET_POINTS): { points: T[]; ste
 }
 
 /**
- * A horizon's points: the last close before its window, so the change covers
- * the whole span and the line enters from the left edge, then everything
- * inside, thinned. Empty when nothing traded inside the window.
+ * A horizon's points: the last close before its window, so the change covers the whole span and the line enters from the left edge, then everything inside, thinned. Empty when nothing traded inside the window.
  */
 export function cutRange(
   src: [string, number][],

@@ -8,8 +8,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY as string | undefined;
 export const supabase =
   SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : undefined;
 
-// Under `vite dev` the server mints a session for the configured account so
-// local work needs no email. One request per page load, shared across hooks.
+// Under `vite dev` the server mints a session for the configured account so local work needs no email. One request per page load, shared across hooks.
 let devSession: Promise<Session | null> | undefined;
 function mintDevSession(): Promise<Session | null> {
   devSession ??= fetch("/__dev/session")

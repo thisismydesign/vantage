@@ -1,6 +1,5 @@
 /**
- * Currency conversion at the rate in force when each bar printed. Rates are
- * quoted as USD→currency, so every conversion pivots through USD.
+ * Currency conversion at the rate in force when each bar printed. Rates are quoted as USD→currency, so every conversion pivots through USD.
  */
 export type BaseCurrency = "EUR" | "USD";
 export const BASES: BaseCurrency[] = ["EUR", "USD"];

@@ -1,6 +1,4 @@
-// Broker data for a signed-in owner, as their agent sent it: the latest
-// positions snapshot, the daily NAV and every fill, read through row security; plus the pure builders
-// that turn them into the Portfolio and Trades shapes the pages render.
+// Broker data for a signed-in owner, as their agent sent it: the latest positions snapshot, the daily NAV and every fill, read through row security; plus the pure builders that turn them into the Portfolio and Trades shapes the pages render.
 
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";

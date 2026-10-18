@@ -6,8 +6,7 @@ const roundTo = (value: number, decimals: number) => Number(value.toFixed(decima
 export const stepDecimals = (step: number) => (String(step).split(".")[1] ?? "").length;
 
 /**
- * Round values at a round step spanning [min, max]. Roughly `count` of them;
- * the first and last always enclose the data so the line never clips.
+ * Round values at a round step spanning [min, max]. Roughly `count` of them; the first and last always enclose the data so the line never clips.
  */
 export function niceTicks(min: number, max: number, count: number): number[] {
   if (!Number.isFinite(min) || !Number.isFinite(max)) return [];
@@ -78,9 +77,7 @@ const DATE_STEPS: { unit: DateUnit; n: number; ms: number }[] = [
 ];
 
 /**
- * Round calendar boundaries (UTC) inside [start, end] at the finest step that
- * yields at most `max` of them, with the unit that names the step so labels
- * can match it.
+ * Round calendar boundaries (UTC) inside [start, end] at the finest step that yields at most `max` of them, with the unit that names the step so labels can match it.
  */
 export function dateTicks(
   start: number,
@@ -128,8 +125,7 @@ function stepTicks(start: number, end: number, step: (typeof DATE_STEPS)[number]
 }
 
 /**
- * Index of the first x at or after each tick, at most `within` past it, keyed to
- * the tick it stands for. A tick with no x close enough drops out. `xs` ascends.
+ * Index of the first x at or after each tick, at most `within` past it, keyed to the tick it stands for. A tick with no x close enough drops out. `xs` ascends.
  */
 export function slotTicks(ticks: number[], xs: number[], within = Infinity): Map<number, number> {
   const slots = new Map<number, number>();

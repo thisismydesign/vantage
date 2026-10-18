@@ -1,5 +1,4 @@
-// Agent keys: made in the browser, checked by the function, so both sides
-// share the shape and the hash. Web Crypto exists in every runtime here.
+// Agent keys: made in the browser, checked by the function, so both sides share the shape and the hash. Web Crypto exists in every runtime here.
 
 export const KEY_PREFIX = "vk_";
 /** Characters shown in lists so the owner can tell keys apart. */

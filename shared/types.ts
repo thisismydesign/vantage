@@ -32,8 +32,7 @@ export interface Portfolio {
   baseCurrency: string;
   positions: Position[];
   /**
-   * Base-currency cash. Negative means a margin loan. Comes from the Flex Cash
-   * Report when the query includes it, otherwise unknown.
+   * Base-currency cash. Negative means a margin loan. Comes from the Flex Cash Report when the query includes it, otherwise unknown.
    */
   cash: { value: number; asOf: string; source: "ibkr" | "account" } | null;
   /** The broker's own net liquidation on its statement date — a reconciliation point. */
@@ -44,8 +43,7 @@ export interface Portfolio {
     value: number;
     /** Positions plus cash — what the account is actually worth. */
     netValue: number;
-    /** Cost basis of the positions that report one, and their value, so a
-     * portfolio-level return can be quoted on like-for-like coverage. */
+    /** Cost basis of the positions that report one, and their value, so a portfolio-level return can be quoted on like-for-like coverage. */
     costBasis: number;
     costBasisCoverage: number;
     byTheme: { theme: string; label: string; value: number; share: number }[];
@@ -102,9 +100,7 @@ export interface TradeFill {
 }
 
 /**
- * A position from flat to flat: every fill on one instrument between a zero
- * position and the next. Scaling in and out stays one trade — what gets
- * scored is the decision to hold the name, not each execution.
+ * A position from flat to flat: every fill on one instrument between a zero position and the next. Scaling in and out stays one trade — what gets scored is the decision to hold the name, not each execution.
  */
 export interface RoundTrip {
   id: string;
@@ -130,9 +126,7 @@ export interface RoundTrip {
   /** Average across exit fills; null until the first exit. */
   exitPrice: number | null;
   /**
-   * `pnl` converted at the last fill's rate. A foreign position is funded by a
-   * loan in its currency, so the currency's move over the holding period is
-   * not part of the trade. Realised so far while open.
+   * `pnl` converted at the last fill's rate. A foreign position is funded by a loan in its currency, so the currency's move over the holding period is not part of the trade. Realised so far while open.
    */
   pnlBase: number;
   /** Net cash across fills, trade currency. */
@@ -143,17 +137,13 @@ export interface RoundTrip {
   /** Sum of the broker's FIFO P&L over the fills, trade currency. */
   brokerPnl: number | null;
   /**
-   * The position was already open when the earliest statement starts, so the
-   * entry is missing. Kept for the record, left out of the statistics.
+   * The position was already open when the earliest statement starts, so the entry is missing. Kept for the record, left out of the statistics.
    */
   truncated: boolean;
 }
 
 /**
- * One closing fill scored on its own, using the broker's FIFO matching. This
- * is the "every sell is a trade" view: scaling out of a position that never
- * went flat yields one of these per sell. The matched lots' entry date is not
- * reported, so there is no holding time.
+ * One closing fill scored on its own, using the broker's FIFO matching. This is the "every sell is a trade" view: scaling out of a position that never went flat yields one of these per sell. The matched lots' entry date is not reported, so there is no holding time.
  */
 export interface TradeClose {
   /** The closing fill's id. */
@@ -176,10 +166,7 @@ export interface TradeClose {
 }
 
 /**
- * Everything ever done on one instrument: the closed history plus whatever is
- * still held. The view prices the open quantity with the latest quote, so the
- * name's total P&L is realised plus unrealised — how the bet on the company
- * is going, not how any one trade went.
+ * Everything ever done on one instrument: the closed history plus whatever is still held. The view prices the open quantity with the latest quote, so the name's total P&L is realised plus unrealised — how the bet on the company is going, not how any one trade went.
  */
 export interface TradeName {
   ticker: string;

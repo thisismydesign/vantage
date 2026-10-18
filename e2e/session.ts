@@ -1,6 +1,5 @@
 /// <reference lib="dom" />
-// One persistent test user, signed in without email: an admin-minted sign-in
-// token verified at once, the same session a magic link would create.
+// One persistent test user, signed in without email: an admin-minted sign-in token verified at once, the same session a magic link would create.
 import type { Page } from "@playwright/test";
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 

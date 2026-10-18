@@ -1,6 +1,5 @@
 // Calendar: the owner's events by month, by week, or as a list of what is ahead.
-// Month cells never change size; a busy day scrolls inside its cell. An event
-// spanning days draws as one bar, named where it starts and on each new week row.
+// Month cells never change size; a busy day scrolls inside its cell. An event spanning days draws as one bar, named where it starts and on each new week row.
 
 import {
   ActionIcon,

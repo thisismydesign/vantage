@@ -16,7 +16,8 @@ shared/types.ts          shapes shared by app and functions
 supabase/functions/      vantage (API, onboarding), _shared helpers
 supabase/migrations/     schema, policies, grants
 supabase/seed/           local data: the template and a dev account
-tests/                   node:test specs for _shared
+lint/                    custom ESLint rules
+tests/                   node:test unit specs
 ```
 
 ## Commands
@@ -41,4 +42,5 @@ pnpm run supabase:deploy && pnpm run deploy
 - Schema changes MUST be new migration files.
 - User-data tables MUST have `owner` and RLS policies.
 - `_shared` MUST run under Deno and Node.
-- Docs MUST stay terse and MUST NOT state what the code already shows; prescriptions use RFC 2119.
+- Code MUST explain itself; comments SHOULD NOT be needed. Comments and docs MAY record a reason the code cannot show and MUST NOT explain how it works.
+- All prose — comments, docs, messages — MUST stay terse; prescriptions use RFC 2119.

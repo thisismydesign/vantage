@@ -1,5 +1,4 @@
-// Calendar rows for a signed-in owner, read through row security, plus the
-// date arithmetic the views share. Dates are local calendar days, never instants.
+// Calendar rows for a signed-in owner, read through row security, plus the date arithmetic the views share. Dates are local calendar days, never instants.
 
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
@@ -10,8 +9,7 @@ import { supabase } from "./supabase.ts";
 export const EVENTS_CHANGED = "vantage:events-changed";
 
 /**
- * Category identity. Validated as a set on the dark surface for colour-blind
- * and normal-vision separation (all pairs), and each holds white text at 4.5:1.
+ * Category identity. Validated as a set on the dark surface for colour-blind and normal-vision separation (all pairs), and each holds white text at 4.5:1.
  */
 export const CATEGORY_COLOR: Record<EventCategory, string> = {
   results: "#1c5cab",
@@ -94,9 +92,7 @@ export const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export type Placed = { event: CalendarEvent; lane: number };
 
 /**
- * Lanes for one week of days (YYYY-MM-DD, Monday first). Earlier and longer
- * events take the lower lanes. Returns, per day, the slots down to the
- * lowest lane used that day, with null where a lane is free.
+ * Lanes for one week of days (YYYY-MM-DD, Monday first). Earlier and longer events take the lower lanes. Returns, per day, the slots down to the lowest lane used that day, with null where a lane is free.
  */
 export function layoutWeek(days: string[], events: CalendarEvent[]): (Placed | null)[][] {
   const end = (e: CalendarEvent) => e.ends_on ?? e.starts_on;

@@ -10,10 +10,7 @@ interface Lot {
 }
 
 /**
- * Walks each name's fills with a FIFO lot queue — the broker's own matching —
- * to find what is still held, what it cost, and the most capital the name ever
- * tied up. Realised P&L is taken from the broker's closes so the two lenses
- * agree to the cent.
+ * Walks each name's fills with a FIFO lot queue — the broker's own matching — to find what is still held, what it cost, and the most capital the name ever tied up. Realised P&L is taken from the broker's closes so the two lenses agree to the cent.
  */
 export function buildNames(
   fills: TradeFill[],

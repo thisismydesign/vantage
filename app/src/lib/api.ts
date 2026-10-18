@@ -71,9 +71,7 @@ export type ChartData = {
 };
 
 /**
- * One request per range; a null range fetches nothing. `cycle` is the time of
- * the last refresh request; a new value refetches. The last good response is kept, in memory and in
- * localStorage, so a failed refresh never blanks the charts.
+ * One request per range; a null range fetches nothing. `cycle` is the time of the last refresh request; a new value refetches. The last good response is kept, in memory and in localStorage, so a failed refresh never blanks the charts.
  */
 export function useChartData(
   range: ChartRange | null,

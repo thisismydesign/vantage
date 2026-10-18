@@ -1,5 +1,4 @@
-// Vantage's pages. The host owns navigation: standalone it is the URL hash
-// (see useHashPage); a host app may drive `page` itself.
+// Vantage's pages. The host owns navigation: standalone it is the URL hash (see useHashPage); a host app may drive `page` itself.
 
 import { Alert, Group, Loader, Text } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";

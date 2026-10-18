@@ -3,14 +3,9 @@ import { money as fmtMoney } from "./format.ts";
 import { useLocalState } from "./useLocalState.ts";
 
 /**
- * Hides what the account is worth, not what the market did. Prices, percentage
- * moves and chart shapes are public information and stay visible — only figures
- * that reveal the size of the book are masked, so the app stays readable over a
- * shoulder or on a shared screen.
+ * Hides what the account is worth, not what the market did. Prices, percentage moves and chart shapes are public information and stay visible — only figures that reveal the size of the book are masked, so the app stays readable over a shoulder or on a shared screen.
  *
- * State lives in a context rather than per-hook local state: the toggle sits in
- * the header and the values it hides are in the views, so they must share one
- * instance.
+ * State lives in a context rather than per-hook local state: the toggle sits in the header and the values it hides are in the views, so they must share one instance.
  */
 const PrivacyContext = createContext<{ hidden: boolean; setHidden: (v: boolean) => void }>({
   hidden: false,
@@ -27,8 +22,7 @@ export const usePrivacy = () => useContext(PrivacyContext);
 const MASK = "•••••";
 
 /**
- * `money`, but masked when hiding. Keeps the currency symbol so the row still
- * reads as an amount and the column width does not jump.
+ * `money`, but masked when hiding. Keeps the currency symbol so the row still reads as an amount and the column width does not jump.
  */
 export function usePrivateMoney() {
   const { hidden } = usePrivacy();
@@ -46,17 +40,11 @@ export function usePrivateText() {
 }
 
 /**
- * Digests are rendered markdown, so amounts are masked in the source text
- * rather than at a call site.
+ * Digests are rendered markdown, so amounts are masked in the source text rather than at a call site.
  *
- * Only the base currency is masked. A digest mixes the human's own figures
- * with public ones — company capex, analyst price targets, deal sizes — and
- * those are quoted in the instrument's currency, almost always USD. Masking
- * every currency symbol hid "$38.29 Billion in new AI Memory Chip Fabs" and
- * "PT $1,014", which reveal nothing about the account.
+ * Only the base currency is masked. A digest mixes the human's own figures with public ones — company capex, analyst price targets, deal sizes — and those are quoted in the instrument's currency, almost always USD. Masking every currency symbol hid "$38.29 Billion in new AI Memory Chip Fabs" and "PT $1,014", which reveal nothing about the account.
  *
- * Percentages are left alone throughout: they describe the market, not the
- * size of the holding.
+ * Percentages are left alone throughout: they describe the market, not the size of the holding.
  */
 export function maskAmounts(markdown: string, symbol = "€"): string {
   const esc = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

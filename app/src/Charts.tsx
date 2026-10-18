@@ -71,9 +71,7 @@ const TOOLBAR_ROW = {
 const INTRADAY_RANGES = new Set<string>(["1d", "24h", "1w"]);
 
 /**
- * Horizons. The intraday ones come as sessions; the rest are pre-cut by the
- * backend to a calendar window ending now, which the axis spans in real time,
- * so a young listing shows empty space where it was not yet trading.
+ * Horizons. The intraday ones come as sessions; the rest are pre-cut by the backend to a calendar window ending now, which the axis spans in real time, so a young listing shows empty space where it was not yet trading.
  */
 const RANGES: { value: "1d" | "24h" | "1w" | HistoryRange; label: string }[] = [
   { value: "1d", label: "1D" },
@@ -94,8 +92,7 @@ type Gaps = "real" | "short";
 /** `value` is in the display currency; `native` is the quote as traded. */
 type Point = { date: string; value: number | null; native: number };
 /**
- * History points plus the currency they are shown in. `start`/`end` bound the
- * calendar window (ms); `bars` says where a close sits relative to its key.
+ * History points plus the currency they are shown in. `start`/`end` bound the calendar window (ms); `bars` says where a close sits relative to its key.
  */
 type Saved = {
   points: Point[];
@@ -106,9 +103,7 @@ type Saved = {
   native?: string;
 };
 /**
- * Chart row: `x` is a timestamp — the bar's time intraday, the end of its day
- * or week on the history series. `value` is null for a gap in trading;
- * `bridge` carries the faded line that spans a closure.
+ * Chart row: `x` is a timestamp — the bar's time intraday, the end of its day or week on the history series. `value` is null for a gap in trading; `bridge` carries the faded line that spans a closure.
  */
 type Row = {
   x: number;
@@ -141,9 +136,7 @@ function slice(
 }
 
 /**
- * A faded line across each closure: the bars either side of a gap row carry
- * their own value on `bridge`, and the gap row the earlier one, so the bridge
- * series runs straight from the last bar before the pause to the first after.
+ * A faded line across each closure: the bars either side of a gap row carry their own value on `bridge`, and the gap row the earlier one, so the bridge series runs straight from the last bar before the pause to the first after.
  */
 function bridged(rows: Row[]): Row[] {
   rows.forEach((row, i) => {
@@ -210,8 +203,7 @@ const TickerChart = memo(function TickerChart({
   const isIntraday = INTRADAY_RANGES.has(range);
   // Every axis is real time; the clock ranges (1D, 24H) label hours, the rest days.
   const clockAxis = range === "1d" || range === "24h";
-  // Intraday times render in the browser's zone; date-only history stays in UTC
-  // so a close dated "2026-10-13" never shifts to the 12th.
+  // Intraday times render in the browser's zone; date-only history stays in UTC so a close dated "2026-10-13" never shifts to the 12th.
   const timeZone = session ? LOCAL_TIME_ZONE : "UTC";
 
   // Converted values exist when the backend had rates; otherwise show as quoted.
@@ -241,9 +233,7 @@ const TickerChart = memo(function TickerChart({
       x: session ? Date.parse(p.date) : Math.min(closeTime(p.date, saved.bars), saved.end),
     }));
     if (range === "24h") {
-      // A null row breaks the line where the exchange was closed between two
-      // bars. Quiet stretches inside an open period stay bridged, so thin names
-      // read as one line. Without period data, fall back to a 45-minute pause.
+      // A null row breaks the line where the exchange was closed between two bars. Quiet stretches inside an open period stay bridged, so thin names read as one line. Without period data, fall back to a 45-minute pause.
       // Feeds report 24/7 markets as daily periods a minute apart; merge those.
       const open: [number, number][] = [];
       for (const [s, e] of (session?.openPeriods ?? [])
@@ -266,8 +256,7 @@ const TickerChart = memo(function TickerChart({
       );
     }
     if (range === "1w") {
-      // One segment per exchange day: a null row breaks the line over the
-      // night, and the real-time axis gives the closure its true width.
+      // One segment per exchange day: a null row breaks the line over the night, and the real-time axis gives the closure its true width.
       const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: session?.timeZone });
       // Round-the-clock markets roll straight past midnight: no pause, no gap.
       const pause = 2 * (session?.intervalMinutes ?? 30) * 60_000;
@@ -282,8 +271,7 @@ const TickerChart = memo(function TickerChart({
         }),
       );
     }
-    // 1D leads with the previous close as its own point, then a gap to the
-    // open that the faded bridge spans.
+    // 1D leads with the previous close as its own point, then a gap to the open that the faded bridge spans.
     const open = session?.marketOpen ? Date.parse(session.marketOpen) : bars[0]?.x;
     if (range !== "1d" || sessionBaseline == null || open == null) return bars;
     return bridged([
@@ -300,8 +288,7 @@ const TickerChart = memo(function TickerChart({
     ]);
   }, [session, sessionConverted, sessionBaseline, isIntraday, saved, range]);
 
-  // Short gaps give every row its own slot, so nights, weekends and a young
-  // listing's missing past fold away. 1D is one session either way.
+  // Short gaps give every row its own slot, so nights, weekends and a young listing's missing past fold away. 1D is one session either way.
   const short = gaps === "short" && range !== "1d";
   const plotted = useMemo(
     () => (short ? rows.map((r, i) => ({ ...r, x: i })) : rows),
@@ -359,9 +346,7 @@ const TickerChart = memo(function TickerChart({
       range === "1d" && session?.marketOpen && session?.marketClose
         ? [Date.parse(session.marketOpen), Date.parse(session.marketClose)]
         : undefined;
-    // The window ends now. 24H reaches back a day, 5D to the first of its
-    // sessions, the history ranges to their calendar start or the baseline
-    // close before it; a listing younger than the window leaves the left empty.
+    // The window ends now. 24H reaches back a day, 5D to the first of its sessions, the history ranges to their calendar start or the baseline close before it; a listing younger than the window leaves the left empty.
     // Short gaps span only the bars.
     const end = Date.parse(asOf);
     const window: [number, number] | undefined = short
@@ -413,8 +398,7 @@ const TickerChart = memo(function TickerChart({
         : formats.dayYear.format(date);
     };
     if (!short) return { yTicks, yDomain, decimals, xTicks, xDomain, xLabel: timeLabel, rowLabel };
-    // A tick moves to the first bar at or after it; 24H drops one that falls in
-    // a closure, where the next bar is more than an interval away.
+    // A tick moves to the first bar at or after it; 24H drops one that falls in a closure, where the next bar is more than an interval away.
     const slots =
       range === "1w"
         ? undefined
@@ -952,8 +936,7 @@ export function Charts({ header = true }: { header?: boolean }) {
         </Stack>
       ) : (
         /*
-         * Desktop: two rows. Row 1: how to show (left), search (middle), what span
-         * (right). Row 2: grouping (left), status (middle), live refresh (right).
+         * Desktop: two rows. Row 1: how to show (left), search (middle), what span (right). Row 2: grouping (left), status (middle), live refresh (right).
          * The middle column is centred and capped so the search sits over its status.
          */
         <Stack gap={6}>
