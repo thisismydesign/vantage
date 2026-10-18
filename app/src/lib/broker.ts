@@ -1,5 +1,5 @@
 // Broker data for a signed-in owner, as their agent sent it: the latest
-// positions snapshot and every fill, read through row security; plus the pure builders
+// positions snapshot, the daily NAV and every fill, read through row security; plus the pure builders
 // that turn them into the Portfolio and Trades shapes the pages render.
 
 import type { Session } from "@supabase/supabase-js";
@@ -68,14 +68,19 @@ export type Snapshot = {
   fetched_at: string;
 };
 
+/** A `nav_history` row: the account's value at a statement date, base currency. */
+export type NavRow = { as_of: string; nav: number; cash: number | null };
+
 export type BrokerData = {
   snapshot: Snapshot | null;
+  /** Oldest first. */
+  history: NavRow[];
   fills: FillRow[];
   loading: boolean;
   error?: string;
 };
 
-const EMPTY: BrokerData = { snapshot: null, fills: [], loading: false };
+const EMPTY: BrokerData = { snapshot: null, history: [], fills: [], loading: false };
 
 export function useBrokerData(session: Session | null): BrokerData {
   const [data, setData] = useState<BrokerData>(EMPTY);
@@ -95,22 +100,26 @@ export function useBrokerData(session: Session | null): BrokerData {
         .order("as_of", { ascending: false })
         .limit(1)
         .maybeSingle();
-      // PostgREST pages at a thousand rows; a few years of fills exceed that.
-      const fills: FillRow[] = [];
-      for (let from = 0; ; from += 1000) {
-        const page = await supabase
-          .from("trade_fills")
-          .select(FILL_COLUMNS)
-          .order("traded_at")
-          .order("id")
-          .range(from, from + 999);
-        if (page.error) throw new Error(page.error.message);
-        fills.push(...((page.data ?? []) as unknown as FillRow[]));
-        if ((page.data?.length ?? 0) < 1000) break;
-      }
+      // PostgREST pages at a thousand rows; a few years of fills or days exceed that.
+      const all = async <T>(table: string, columns: string, order: string[]) => {
+        const rows: T[] = [];
+        for (let from = 0; ; from += 1000) {
+          let query = supabase!.from(table).select(columns);
+          for (const column of order) query = query.order(column);
+          const page = await query.range(from, from + 999);
+          if (page.error) throw new Error(page.error.message);
+          rows.push(...((page.data ?? []) as unknown as T[]));
+          if ((page.data?.length ?? 0) < 1000) return rows;
+        }
+      };
+      const [history, fills] = await Promise.all([
+        all<NavRow>("nav_history", "as_of,nav,cash", ["as_of"]),
+        all<FillRow>("trade_fills", FILL_COLUMNS, ["traded_at", "id"]),
+      ]);
       if (disposed) return;
       setData({
         snapshot: (snapshot.data as unknown as Snapshot | null) ?? null,
+        history,
         fills,
         loading: false,
         error: snapshot.error?.message,

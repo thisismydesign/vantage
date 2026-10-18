@@ -17,11 +17,12 @@ import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
 import type { Position } from "@shared/types.ts";
 import { Stat } from "./components/Stat.tsx";
+import { NavHistory } from "./NavHistory.tsx";
 import { displayDate, displayDateTime, pct, signedPct } from "./lib/format.ts";
 import { usePrivateMoney } from "./lib/privacy.tsx";
 import { TONE } from "./theme.ts";
 import type { ChartItem, ChartTheme } from "./lib/api.ts";
-import type { Built } from "./lib/broker.ts";
+import type { Built, NavRow } from "./lib/broker.ts";
 
 const UNCLASSIFIED = "unclassified";
 const THEME_COLORS = [
@@ -203,10 +204,12 @@ function HoldingsTable({
 
 export function PortfolioPage({
   built,
+  history,
   items,
   themes,
 }: {
   built: Built;
+  history: NavRow[];
   items: ChartItem[];
   themes: ChartTheme[];
 }) {
@@ -283,6 +286,8 @@ export function PortfolioPage({
           }
         />
       </SimpleGrid>
+
+      <NavHistory history={history} base={base} />
 
       {donut.length ? (
         <Card withBorder>

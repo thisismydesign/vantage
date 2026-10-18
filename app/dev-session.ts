@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { loadEnv, type Plugin } from "vite";
 
 // Dev-only: GET /__dev/session mints a Supabase session for VANTAGE_DEV_EMAIL
-// so local work skips the magic link. Needs the server key from .env, which
+// so local work skips the magic link. Needs the server key from .env.development, which
 // only the Vite process reads; the middleware exists only under `vite dev`.
 export function devSession(envDir: string): Plugin {
   return {

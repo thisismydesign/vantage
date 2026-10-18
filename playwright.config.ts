@@ -1,15 +1,14 @@
 import { defineConfig } from "@playwright/test";
 
-// Local runs read .env like the tools do; CI passes the same names as env vars.
-try {
-  process.loadEnvFile(".env");
-} catch {
-  /* no .env: CI */
-}
-
-// E2E_BASE_URL points at a deployed site (the production smoke test);
-// without it a preview build is served locally.
+// E2E_BASE_URL points at a deployed site (the production smoke test) and reads
+// .env; without it a preview build runs against the local stack. CI passes the
+// same names as env vars.
 const base = process.env.E2E_BASE_URL;
+try {
+  process.loadEnvFile(base ? ".env" : ".env.development");
+} catch {
+  /* no file: CI */
+}
 
 export default defineConfig({
   testDir: "e2e",
@@ -22,7 +21,8 @@ export default defineConfig({
   webServer: base
     ? undefined
     : {
-        command: "pnpm exec vite build app && pnpm exec vite preview app --port 4199 --strictPort",
+        command:
+          "pnpm exec vite build app --mode development && pnpm exec vite preview app --port 4199 --strictPort",
         url: "http://localhost:4199",
         reuseExistingServer: false,
         timeout: 120_000,

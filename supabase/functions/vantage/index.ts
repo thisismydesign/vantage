@@ -540,6 +540,7 @@ async function restOpenapi() {
     "portfolio_snapshots",
     "snapshot_positions",
     "rpc/put_portfolio_snapshot",
+    "nav_history",
     "trade_fills",
   ]);
   const pick = (o: Record<string, unknown> | undefined, strip: (k: string) => string) =>

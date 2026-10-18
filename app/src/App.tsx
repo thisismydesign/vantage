@@ -92,7 +92,14 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
           Your agent sends broker statements through the API; the latest one shows here.
         </Alert>
       );
-    return <PortfolioPage built={built} items={live!.items} themes={live!.themes} />;
+    return (
+      <PortfolioPage
+        built={built}
+        history={broker.history}
+        items={live!.items}
+        themes={live!.themes}
+      />
+    );
   }
   if (!trades)
     return (
