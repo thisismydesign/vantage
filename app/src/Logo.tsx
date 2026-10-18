@@ -1,4 +1,4 @@
-/** The Vantage mark: a rising line reaching a lookout. Mirrors public/favicon.svg. */
+/** Mirrors public/favicon.svg. */
 export function Logo({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="4 4 56 56" aria-hidden="true">

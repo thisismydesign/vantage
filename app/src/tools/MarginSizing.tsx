@@ -1,5 +1,3 @@
-// Margin bet sizing from the latest broker snapshot. The statement gives net liquidation and cash; the broker's maintenance requirement is not in it, so a flat rate on the existing book stands in, and everything else follows.
-
 import { LineChart } from "@mantine/charts";
 import {
   Accordion,
@@ -102,8 +100,7 @@ export function MarginSizing({ snapshot }: { snapshot: Snapshot }) {
   const eur = (n: number) => money(n, currency);
   const nlv = snapshot.nav ?? 0;
   const cash = snapshot.cash ?? 0;
-  // Positions at the statement's marks: equity plus whatever is borrowed.
-  const vExist = nlv - cash;
+  const bookValue = nlv - cash;
 
   const [maintRate, setMaintRate] = useLocalState("margin.maintRate", 0.25);
   const [betSize, setBetSize] = useLocalState("margin.betSize", Math.round(nlv / 2));
@@ -114,15 +111,15 @@ export function MarginSizing({ snapshot }: { snapshot: Snapshot }) {
   const [gUp, setGUp] = useLocalState("margin.gUp", 0.5);
   const [lDown, setLDown] = useLocalState("margin.lDown", 0.3);
 
-  const maintMargin = maintRate * vExist;
+  const maintMargin = maintRate * bookValue;
   const excessLiq = nlv - maintMargin;
   const buyingPower = excessLiq / marginRate;
 
   const elAfter = excessLiq - marginRate * betSize;
   const maxAffordable = excessLiq / marginRate;
-  const grossLev = nlv > 0 ? (vExist + betSize) / nlv : 0;
+  const grossLev = nlv > 0 ? (bookValue + betSize) / nlv : 0;
 
-  const denom = betSize * (1 - marginRate) + corr * (vExist - maintMargin);
+  const denom = betSize * (1 - marginRate) + corr * (bookValue - maintMargin);
   const xLiq = denom > 0 ? elAfter / denom : Infinity;
 
   const floorEur = floorPct * nlv;
@@ -139,7 +136,7 @@ export function MarginSizing({ snapshot }: { snapshot: Snapshot }) {
   }));
 
   const stressDrops = [0.1, 0.2, 0.3, 0.4];
-  const stressDenom = betSize * (1 - marginRate) + (vExist - maintMargin);
+  const stressDenom = betSize * (1 - marginRate) + (bookValue - maintMargin);
 
   const kellyFull = (pUp * gUp - (1 - pUp) * lDown) / (gUp * lDown);
   const kellyHalfEur = (kellyFull / 2) * nlv;
@@ -220,7 +217,7 @@ export function MarginSizing({ snapshot }: { snapshot: Snapshot }) {
             </Group>
             <Slider value={corr} min={0} max={1} step={0.05} onChange={setCorr} />
             <Text size="xs" c="dimmed">
-              How much your current {eur(vExist)} book falls when the new bet falls. 0% =
+              How much your current {eur(bookValue)} book falls when the new bet falls. 0% =
               uncorrelated, 100% = moves together.
             </Text>
           </Stack>
@@ -230,7 +227,7 @@ export function MarginSizing({ snapshot }: { snapshot: Snapshot }) {
               label="Maintenance rate on the book"
               value={maintRate}
               onChange={setMaintRate}
-              hint={`Stands in for the broker's requirement: ${eur(maintMargin)} on ${eur(vExist)}, leaving ${eur(excessLiq)} excess liquidity.`}
+              hint={`Stands in for the broker's requirement: ${eur(maintMargin)} on ${eur(bookValue)}, leaving ${eur(excessLiq)} excess liquidity.`}
             />
             <Knob
               label="Margin rate on the bet"
@@ -394,10 +391,10 @@ export function MarginSizing({ snapshot }: { snapshot: Snapshot }) {
           <Accordion.Panel>
             <Paper p="sm">
               <Text size="sm">
-                Net liquidation {eur(nlv)} · cash {eur(cash)} · existing book {eur(vExist)} from the
-                statement. Maintenance margin {eur(maintMargin)} ({pct(maintRate, 0)} of the book),
-                excess liquidity {eur(excessLiq)} and buying power {eur(buyingPower)} are derived
-                from the rates above.
+                Net liquidation {eur(nlv)} · cash {eur(cash)} · existing book {eur(bookValue)} from
+                the statement. Maintenance margin {eur(maintMargin)} ({pct(maintRate, 0)} of the
+                book), excess liquidity {eur(excessLiq)} and buying power {eur(buyingPower)} are
+                derived from the rates above.
               </Text>
             </Paper>
           </Accordion.Panel>

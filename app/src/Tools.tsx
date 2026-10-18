@@ -1,6 +1,3 @@
-// Tools: calculators over the owner's own data, one subpage each at
-// #/tools/<tool>, picked from tabs across the top.
-
 import { Alert, Group, Loader, Tabs, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useBrokerData } from "./lib/broker.ts";
@@ -11,7 +8,6 @@ const TOOLS = [{ value: "margin", label: "Margin sizing" }] as const;
 type Tool = (typeof TOOLS)[number]["value"];
 const isTool = (v: string): v is Tool => TOOLS.some((t) => t.value === v);
 
-/** The second hash segment picks the tool: `#/tools/margin`. */
 function useHashTool(): [Tool, (t: Tool) => void] {
   const read = () => {
     const sub = window.location.hash.replace(/^#\/?/, "").split("/")[1] ?? "";
@@ -26,7 +22,6 @@ function useHashTool(): [Tool, (t: Tool) => void] {
   return [tool, (t) => (window.location.hash = `/tools/${t}`)];
 }
 
-/** Margin sizing starts from the latest statement. */
 function MarginSizingTool() {
   const session = useSession();
   const broker = useBrokerData(session);

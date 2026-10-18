@@ -1,13 +1,8 @@
-/** Axis tick helpers. Few, round, evenly spread labels — the Google Finance look. */
-
 const roundTo = (value: number, decimals: number) => Number(value.toFixed(decimals));
 
-/** Decimal places needed to print `step` exactly (0.25 → 2). */
 export const stepDecimals = (step: number) => (String(step).split(".")[1] ?? "").length;
 
-/**
- * Round values at a round step spanning [min, max]. Roughly `count` of them; the first and last always enclose the data so the line never clips.
- */
+/** The first and last ticks enclose the data so the line never clips. */
 export function niceTicks(min: number, max: number, count: number): number[] {
   if (!Number.isFinite(min) || !Number.isFinite(max)) return [];
   if (max <= min) {
@@ -29,24 +24,21 @@ export function niceTicks(min: number, max: number, count: number): number[] {
   return ticks;
 }
 
-/** Every k-th item from the first so at most `max` remain. */
 export function thin<T>(items: T[], max: number): T[] {
   if (items.length <= max) return items;
   const step = Math.ceil(items.length / max);
   return items.filter((_, i) => i % step === 0);
 }
 
-/** Whole hours (exchange-local) inside [start, end], thinned to `max`. */
 export function hourTicks(start: number, end: number, timeZone: string, max: number): number[] {
-  const minute = new Intl.DateTimeFormat("en-GB", { timeZone, minute: "numeric" });
-  const offset = Number(minute.format(start)) % 60;
-  const first = start + ((60 - offset) % 60) * 60_000;
+  const minuteInZone = new Intl.DateTimeFormat("en-GB", { timeZone, minute: "numeric" });
+  const minutesPastHour = Number(minuteInZone.format(start)) % 60;
+  const firstWholeHour = start + ((60 - minutesPastHour) % 60) * 60_000;
   const hours: number[] = [];
-  for (let t = first; t <= end && hours.length < 24 * 14; t += 3_600_000) hours.push(t);
+  for (let t = firstWholeHour; t <= end && hours.length < 24 * 14; t += 3_600_000) hours.push(t);
   return thin(hours, max);
 }
 
-/** Middle timestamp of each run of equal keys, thinned to `max`. */
 export function groupMiddles(xs: number[], keys: string[], max: number): number[] {
   const middles: number[] = [];
   let start = 0;
@@ -61,7 +53,7 @@ export function groupMiddles(xs: number[], keys: string[], max: number): number[
 
 export type DateUnit = "day" | "month" | "year";
 const DAY_MS = 86_400_000;
-/** Candidate calendar steps, finest first. Weeks start on Monday; months and years align to January. */
+/** Finest first. */
 const DATE_STEPS: { unit: DateUnit; n: number; ms: number }[] = [
   { unit: "day", n: 1, ms: DAY_MS },
   { unit: "day", n: 2, ms: 2 * DAY_MS },
@@ -76,9 +68,6 @@ const DATE_STEPS: { unit: DateUnit; n: number; ms: number }[] = [
   { unit: "year", n: 5, ms: 1826 * DAY_MS },
 ];
 
-/**
- * Round calendar boundaries (UTC) inside [start, end] at the finest step that yields at most `max` of them, with the unit that names the step so labels can match it.
- */
 export function dateTicks(
   start: number,
   end: number,
@@ -124,15 +113,13 @@ function stepTicks(start: number, end: number, step: (typeof DATE_STEPS)[number]
   return ticks;
 }
 
-/**
- * Index of the first x at or after each tick, at most `within` past it, keyed to the tick it stands for. A tick with no x close enough drops out. `xs` ascends.
- */
+/** `xs` must ascend. */
 export function slotTicks(ticks: number[], xs: number[], within = Infinity): Map<number, number> {
-  const slots = new Map<number, number>();
+  const tickByIndex = new Map<number, number>();
   let i = 0;
   for (const t of ticks) {
     while (i < xs.length && xs[i] < t) i++;
-    if (i < xs.length && xs[i] - t <= within && !slots.has(i)) slots.set(i, t);
+    if (i < xs.length && xs[i] - t <= within && !tickByIndex.has(i)) tickByIndex.set(i, t);
   }
-  return slots;
+  return tickByIndex;
 }

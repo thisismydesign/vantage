@@ -1,5 +1,3 @@
-// A day's heading in lists: prominent, and pinned under the bar while its day scrolls by.
-
 import { Text } from "@mantine/core";
 import { addDays, dayKey, displayDay, today } from "./lib/events.ts";
 

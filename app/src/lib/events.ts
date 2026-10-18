@@ -1,15 +1,14 @@
-// Calendar rows for a signed-in owner, read through row security, plus the date arithmetic the views share. Dates are local calendar days, never instants.
+// Dates are local calendar days, never instants.
 
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import type { CalendarEvent, EventCategory } from "@shared/types.ts";
 import { supabase } from "./supabase.ts";
 
-/** Fired on `window` after events changed elsewhere (settings, tests). */
 export const EVENTS_CHANGED = "vantage:events-changed";
 
 /**
- * Category identity. Validated as a set on the dark surface for colour-blind and normal-vision separation (all pairs), and each holds white text at 4.5:1.
+ * Validated as a set on the dark surface for colour-blind and normal-vision separation (all pairs); each holds white text at 4.5:1.
  */
 export const CATEGORY_COLOR: Record<EventCategory, string> = {
   results: "#1c5cab",
@@ -60,7 +59,6 @@ export function useEvents(session: Session | null): EventsData {
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
-/** Local calendar day as YYYY-MM-DD. */
 export const dayKey = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 export const today = () => dayKey(new Date());
@@ -69,18 +67,18 @@ export const addDays = (d: Date, n: number) => {
   next.setDate(next.getDate() + n);
   return next;
 };
-/** Monday of the week holding `d`. */
-export const weekStart = (d: Date) => addDays(d, -((d.getDay() + 6) % 7));
+const daysSinceMonday = (d: Date) => (d.getDay() + 6) % 7;
+export const weekStart = (d: Date) => addDays(d, -daysSinceMonday(d));
 export const monthStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 export const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, 1);
 
-/** Six Monday-first weeks covering the month, so every month is the same height. */
+/** Always six weeks so every month is the same height. */
+const MONTH_GRID_DAYS = 6 * 7;
 export function monthGrid(month: Date): Date[] {
   const first = weekStart(monthStart(month));
-  return Array.from({ length: 42 }, (_, i) => addDays(first, i));
+  return Array.from({ length: MONTH_GRID_DAYS }, (_, i) => addDays(first, i));
 }
 
-/** An event covers every day from starts_on through ends_on inclusive. */
 export const covers = (e: CalendarEvent, day: string) =>
   e.starts_on <= day && day <= (e.ends_on ?? e.starts_on);
 
@@ -88,12 +86,9 @@ export const displayMonth = (d: Date) => `${d.getFullYear()}.${pad(d.getMonth() 
 export const displayDay = (key: string) => key.replaceAll("-", ".");
 export const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-/** An event's slot in one week row; lanes keep a multi-day bar on one line. */
 export type Placed = { event: CalendarEvent; lane: number };
 
-/**
- * Lanes for one week of days (YYYY-MM-DD, Monday first). Earlier and longer events take the lower lanes. Returns, per day, the slots down to the lowest lane used that day, with null where a lane is free.
- */
+/** `days` is one week of YYYY-MM-DD, ascending. */
 export function layoutWeek(days: string[], events: CalendarEvent[]): (Placed | null)[][] {
   const end = (e: CalendarEvent) => e.ends_on ?? e.starts_on;
   const length = (e: CalendarEvent) => Date.parse(end(e)) - Date.parse(e.starts_on);

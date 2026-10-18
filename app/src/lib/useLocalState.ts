@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 
 const PREFIX = "vantage:";
 
-// Knob values survive reloads; data-derived values must not be cached here.
+// For UI settings only; data-derived values must not be cached here.
 export function useLocalState<T>(key: string, initial: T): [T, (v: T) => void] {
   const [value, setValue] = useState<T>(() => {
     const stored = window.localStorage.getItem(PREFIX + key);

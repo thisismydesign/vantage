@@ -1,4 +1,3 @@
-// Tools read the latest broker statement; margin sizing derives the rest from it.
 import { expect, test } from "@playwright/test";
 import { canSignIn, seedSnapshot, signIn } from "./session.ts";
 

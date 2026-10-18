@@ -26,8 +26,7 @@ export type ListQuote = {
   changes: Partial<Record<Horizon, number | null>>;
 };
 
-/** A series in the display currency, or as quoted when the backend had no rates for it. */
-function shown(
+function inDisplayCurrency(
   points: [string, number][],
   converted: Record<BaseCurrency, (number | null)[]> | undefined,
   currency: string | undefined,
@@ -45,10 +44,7 @@ const known = (values: (number | null)[]) => values.filter((v): v is number => v
 const move = (from: number | null | undefined, to: number | undefined) =>
   from && to != null ? to / from - 1 : null;
 
-/**
- * Price and the move over every horizon, each measured the way its chart is:
- * 1D against the previous close, the rest from the first point to the last.
- */
+/** Each move is measured the way its chart measures it. */
 export function listQuotes(
   tickers: string[],
   day: ChartsResponse | undefined,
@@ -64,7 +60,7 @@ export function listQuotes(
 
       const session = asSession(day?.series[t]);
       if (session) {
-        const s = shown(session.points, session.converted, session.currency, base);
+        const s = inDisplayCurrency(session.points, session.converted, session.currency, base);
         const last = known(s.values).at(-1);
         const previous = s.converted
           ? session.previousCloseConverted?.[base as BaseCurrency]
@@ -75,17 +71,16 @@ export function listQuotes(
       }
       const five = asSession(week?.series[t]);
       if (five) {
-        const v = known(shown(five.points, five.converted, five.currency, base).values);
+        const v = known(inDisplayCurrency(five.points, five.converted, five.currency, base).values);
         changes["1w"] = move(v[0], v.at(-1));
       }
       const h = asHistory(history?.series[t]);
       for (const range of ["1m", "3m", "6m", "ytd", "1y", "5y"] as const) {
         const src = h?.ranges?.[range];
         if (!src?.points.length) continue;
-        const s = shown(src.points, src.converted, h!.currency, base);
+        const s = inDisplayCurrency(src.points, src.converted, h!.currency, base);
         const v = known(s.values);
         changes[range] = move(v[0], v.at(-1));
-        // Without a live session the latest close stands in for the price.
         if (price == null && range === "1m") {
           price = v.at(-1) ?? null;
           currency = s.currency;
@@ -96,7 +91,7 @@ export function listQuotes(
   );
 }
 
-/** Watchlist tickers in the latest broker statement; null while signed out or never synced. */
+/** Null while signed out or never synced. */
 export function useHeld(items: ChartItem[], enabled: boolean): Set<string> | null {
   const session = useSession();
   const [positions, setPositions] = useState<Pick<PositionRow, "symbol" | "quantity">[] | null>(
@@ -138,7 +133,7 @@ function ChangeCell({ value }: { value: number | null | undefined }) {
   );
 }
 
-// One table per group, so widths are pinned and the layout fixed — otherwise each group sizes its columns independently and nothing lines up down the page.
+// Pinned widths and fixed layout make the per-group tables line up down the page.
 export function WatchTable({
   tickers,
   itemByTicker,
@@ -165,7 +160,7 @@ export function WatchTable({
                 {h.label}
               </Table.Th>
             ))}
-            {/* Soaks up the leftover width so the numbers stay next to the names instead of being pushed to the far edge. */}
+            {/* Keeps the numbers beside the names instead of at the far edge. */}
             <Table.Th />
           </Table.Tr>
         </Table.Thead>

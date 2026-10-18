@@ -1,5 +1,3 @@
-// Shapes shared by the web app and the edge functions.
-
 export type AssetKind = "equity" | "crypto" | "private";
 
 export type PositionSource = "ibkr" | "kraken";
@@ -11,60 +9,51 @@ export interface Position {
   account?: string;
   quantity: number;
   currency: string;
-  /** Last price in `currency`. */
+  /** In `currency`. */
   price: number | null;
-  /** Market value in `currency`. */
+  /** In `currency`. */
   value: number | null;
-  /** Market value converted to the portfolio base currency. */
   valueBase: number | null;
   costBasis?: number | null;
-  /** Cost basis converted to the portfolio base currency. */
   costBasisBase?: number | null;
   unrealizedPnl?: number | null;
-  /** Whether price/value came from a live quote or the broker's statement mark. */
   priceSource: "quote" | "broker";
   asOf: string;
 }
 
 export interface Portfolio {
-  /** One account, as built from the latest broker statement. */
   asOf: string;
   baseCurrency: string;
   positions: Position[];
-  /**
-   * Base-currency cash. Negative means a margin loan. Comes from the Flex Cash Report when the query includes it, otherwise unknown.
-   */
+  /** Base currency; negative means a margin loan; null when the Flex query lacks the Cash Report. */
   cash: { value: number; asOf: string; source: "ibkr" | "account" } | null;
-  /** The broker's own net liquidation on its statement date — a reconciliation point. */
+  /** The broker's own net liquidation, for reconciliation. */
   brokerNav: { value: number; asOf: string } | null;
-  /** Base-currency totals, plus per-theme breakdown. */
+  /** Base currency. */
   totals: {
     /** Positions only. */
     value: number;
-    /** Positions plus cash — what the account is actually worth. */
+    /** Positions plus cash. */
     netValue: number;
-    /** Cost basis of the positions that report one, and their value, so a portfolio-level return can be quoted on like-for-like coverage. */
+    /** Over positions that report one; `costBasisCoverage` is their value, so a return compares like for like. */
     costBasis: number;
     costBasisCoverage: number;
     byTheme: { theme: string; label: string; value: number; share: number }[];
     bySource: { source: PositionSource; value: number }[];
   };
-  /** Watchlist entries with no position — tracked, not held. */
   watchOnly: string[];
   warnings: string[];
 }
 
 export type HistoryRange = "1m" | "3m" | "6m" | "ytd" | "1y" | "5y";
 
-/** One horizon's closes, thinned to about the chart's target point count. */
 export interface RangeSeries {
   /** Keys are ISO times for intraday bars, dates for daily and weekly ones. */
   points: [string, number][];
-  /** Each point in each base currency at the FX rate of its day, aligned with `points`. */
+  /** At each point's FX rate, aligned with `points`. */
   converted?: Record<BaseCurrency, (number | null)[]>;
 }
 
-/** Vantage's history payload: one pre-cut series per horizon. */
 export interface VantageHistory {
   symbol: string;
   currency?: string;
@@ -85,23 +74,21 @@ export interface TradeFill {
   quantity: number;
   price: number;
   currency: string;
-  /** Units of base currency per 1 unit of `currency` on the trade date. */
+  /** Base-currency units per unit of `currency` on the trade date. */
   fxRateToBase: number | null;
-  /** Cash moved before commission, negative on a buy. */
+  /** Before commission; negative on a buy. */
   proceeds: number;
   /** Negative. */
   commission: number;
   /** proceeds + commission. */
   netCash: number;
-  /** Broker's FIFO realised P&L on this fill, for reconciliation. */
+  /** Broker's FIFO realised P&L, for reconciliation. */
   brokerPnl: number | null;
   /** Broker's O (open) / C (close) flag; "C;O" flips through zero. */
   openClose: string | null;
 }
 
-/**
- * A position from flat to flat: every fill on one instrument between a zero position and the next. Scaling in and out stays one trade — what gets scored is the decision to hold the name, not each execution.
- */
+/** Flat to flat on one instrument, so scaling in and out stays one trade: the decision to hold the name is scored, not each execution. */
 export interface RoundTrip {
   id: string;
   ticker: string;
@@ -116,35 +103,31 @@ export interface RoundTrip {
   /** Calendar days from first fill to last; to today while open. */
   holdingDays: number;
   fills: number;
-  /** Largest absolute position reached. */
+  /** Absolute. */
   peakQuantity: number;
-  /** Quantity still held; 0 when closed. */
+  /** 0 when closed. */
   openQuantity: number;
-  /** Money committed on the entry side, base currency, before commission. */
+  /** Before commission. */
   entryValueBase: number;
   entryPrice: number;
   /** Average across exit fills; null until the first exit. */
   exitPrice: number | null;
   /**
-   * `pnl` converted at the last fill's rate. A foreign position is funded by a loan in its currency, so the currency's move over the holding period is not part of the trade. Realised so far while open.
+   * At the last fill's rate: a foreign position is funded by a loan in its currency, so the FX move is not part of the trade. Realised so far while open.
    */
   pnlBase: number;
-  /** Net cash across fills, trade currency. */
+  /** Net cash, trade currency. */
   pnl: number;
-  /** pnlBase / entryValueBase. Null while open — the remainder is unpriced. */
+  /** pnlBase / entryValueBase. Null while open: the remainder is unpriced. */
   returnPct: number | null;
   commissionBase: number;
-  /** Sum of the broker's FIFO P&L over the fills, trade currency. */
+  /** Broker's FIFO P&L, trade currency. */
   brokerPnl: number | null;
-  /**
-   * The position was already open when the earliest statement starts, so the entry is missing. Kept for the record, left out of the statistics.
-   */
+  /** The entry predates the earliest statement; kept for the record, left out of the statistics. */
   truncated: boolean;
 }
 
-/**
- * One closing fill scored on its own, using the broker's FIFO matching. This is the "every sell is a trade" view: scaling out of a position that never went flat yields one of these per sell. The matched lots' entry date is not reported, so there is no holding time.
- */
+/** Scored by the broker's FIFO matching. The broker omits the matched lots' entry date, so there is no holding time. */
 export interface TradeClose {
   /** The closing fill's id. */
   id: string;
@@ -155,7 +138,7 @@ export interface TradeClose {
   dateTime: string;
   quantity: number;
   price: number;
-  /** Cost of the matched lots, trade currency, derived as proceeds − P&L. */
+  /** Matched lots' cost, trade currency: proceeds − P&L. */
   cost: number;
   /** Broker FIFO P&L net of commissions, trade currency. */
   pnl: number;
@@ -165,9 +148,7 @@ export interface TradeClose {
   returnPct: number;
 }
 
-/**
- * Everything ever done on one instrument: the closed history plus whatever is still held. The view prices the open quantity with the latest quote, so the name's total P&L is realised plus unrealised — how the bet on the company is going, not how any one trade went.
- */
+/** The view prices the open quantity live, so total P&L is realised plus unrealised. */
 export interface TradeName {
   ticker: string;
   symbol: string;
@@ -175,30 +156,29 @@ export interface TradeName {
   currency: string;
   firstAt: string;
   lastAt: string;
-  /** Flat-to-flat cycles, including an open one. */
+  /** Including an open one. */
   roundTrips: number;
   closes: number;
   closeWins: number;
   status: "held" | "closed";
   /** Signed; negative when short. */
   openQuantity: number;
-  /** FIFO cost of what is still held, trade currency, commissions included. */
+  /** FIFO, trade currency, commissions included. */
   openCost: number;
-  /** Same in base currency at the entry rates. Signed like `openQuantity`. */
+  /** At the entry rates; signed like `openQuantity`. */
   openCostBase: number;
-  /** The most cost held at any moment, base currency — the capital the name tied up. */
+  /** Most cost held at once. */
   peakCostBase: number;
-  /** Sum of the broker's FIFO P&L on the name's closes, base currency. */
+  /** Broker's FIFO P&L over the name's closes. */
   realisedBase: number;
-  /** Some of this name's history predates the statements. */
+  /** Some history predates the statements. */
   truncated: boolean;
 }
 
-/** Every fill, round trip and per-name total for one account. */
 export interface TradesFile {
   asOf: string;
   baseCurrency: string;
-  /** Earliest and latest statement dates the fills were read from. */
+  /** Statement date range of the fills. */
   from: string;
   to: string;
   fills: TradeFill[];
@@ -219,11 +199,10 @@ export interface IntradaySeries {
   currency: string;
   timeZone: string;
   session: string;
-  /** ISO time of the last bar before this session. */
   previousCloseAt?: string;
-  /** Stretches when the exchange was open (pre, regular and post merged), as ISO [start, end]. */
+  /** Pre, regular and post merged. */
   openPeriods?: [string, string][];
-  /** Each point in each base currency at the FX rate of that time, aligned with `points`. */
+  /** At each point's FX rate, aligned with `points`. */
   converted?: Record<BaseCurrency, (number | null)[]>;
   previousCloseConverted?: Record<BaseCurrency, number | null>;
   previousClose: number | null;
@@ -233,7 +212,6 @@ export interface IntradaySeries {
 import type { EventCategory } from "../supabase/functions/_shared/events.ts";
 export type { EventCategory };
 
-/** A row of `events`, as PostgREST returns it. */
 export interface CalendarEvent {
   id: string;
   ticker: string;
@@ -253,7 +231,6 @@ export interface CalendarEvent {
 import type { Sentiment } from "../supabase/functions/_shared/news.ts";
 export type { Sentiment };
 
-/** A row of `news`, as PostgREST returns it. */
 export interface NewsItem {
   id: string;
   ticker: string;
@@ -269,7 +246,7 @@ export interface NewsItem {
   updated_at: string;
 }
 
-/** A row of `api_keys` as the owner sees it; the hash never leaves the database. */
+/** The hash never leaves the database. */
 export interface ApiKey {
   id: string;
   name: string;

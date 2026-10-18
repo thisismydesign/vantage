@@ -1,12 +1,9 @@
-// What an agent reads to work with Vantage: the instructions in agent.md and the API description.
-// Edits go through Supabase's own REST layer, which describes its tables itself.
-
 export const SITE = "https://vantage.personal-553.workers.dev";
 
 export type Endpoints = {
   /** This function. */
   base: string;
-  /** Supabase project URL. */
+  /** Project URL. */
   supabase: string;
   /** Publishable key; sent as the `apikey` header on every Supabase call. */
   anonKey: string;
@@ -26,7 +23,6 @@ export const endpoints = (e: Endpoints) => ({
   site: SITE,
 });
 
-/** The agent instructions in agent.md, with this deployment's URLs filled in. */
 export async function agentInstructions(e: Endpoints) {
   const values: Record<string, string> = endpoints(e);
   const template = await Deno.readTextFile(new URL("./agent.md", import.meta.url));
@@ -36,6 +32,7 @@ export async function agentInstructions(e: Endpoints) {
   });
 }
 
+// Table edits go through Supabase's REST layer, which describes itself.
 export function openapi(e: Endpoints) {
   const u = endpoints(e);
   const group = {

@@ -45,8 +45,6 @@ const profitFactor = (rows: { pnl: number }[]) => {
 };
 const fmtFactor = (f: number | null) => (f === null ? "—" : f === Infinity ? "∞" : f.toFixed(2));
 
-// ---------------------------------------------------------------- names
-
 interface NameRow extends TradeName {
   priced: boolean;
   priceAsOf: string | null;
@@ -264,8 +262,6 @@ function NamesLens({ rows, base, nav }: { rows: NameRow[]; base: string; nav: nu
     </>
   );
 }
-
-// --------------------------------------------------------------- closes
 
 function streaks(rows: TradeClose[]) {
   let win = 0;
@@ -636,8 +632,6 @@ function ClosesLens({ rows, base }: { rows: TradeClose[]; base: string }) {
     </>
   );
 }
-
-// ------------------------------------------------------------------ page
 
 export function TradesPage({
   trades,

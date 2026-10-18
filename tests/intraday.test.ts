@@ -69,8 +69,8 @@ test("1D shows the latest session with data; 24H crosses the day boundary", () =
   const now = Date.parse("2026-10-15T16:00:00Z");
   assert.equal(intradayRange("TEST", chart, "1d", now).points.length, 1);
   assert.equal(intradayRange("TEST", chart, "24h", now).points.length, 3);
-  // After the exchange's midnight, before the open, the last session stays up.
-  assert.equal(intradayRange("TEST", chart, "1d", now + 86_400_000).points.length, 1);
+  const nextDayWithoutBars = now + 86_400_000;
+  assert.equal(intradayRange("TEST", chart, "1d", nextDayWithoutBars).points.length, 1);
 });
 
 test("1D preserves exchange opening and early closing times while data is incomplete", () => {

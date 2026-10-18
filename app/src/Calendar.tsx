@@ -1,6 +1,3 @@
-// Calendar: the owner's events by month, by week, or as a list of what is ahead.
-// Month cells never change size; a busy day scrolls inside its cell. An event spanning days draws as one bar, named where it starts and on each new week row.
-
 import {
   ActionIcon,
   Alert,
@@ -53,36 +50,33 @@ const LIST_DAYS = 30;
 
 function Chip({
   event,
-  label = true,
-  left,
-  right,
-  full,
+  named = true,
+  fromPreviousDay,
+  intoNextDay,
+  alwaysShowTitle,
   onOpen,
 }: {
   event: CalendarEvent;
-  /** Name the event; a continuing bar leaves it to where the bar starts. */
-  label?: boolean;
-  /** The bar continues from the previous day / into the next. */
-  left?: boolean;
-  right?: boolean;
-  /** Always show the title; the month grid hides it on phones. */
-  full?: boolean;
+  named?: boolean;
+  fromPreviousDay?: boolean;
+  intoNextDay?: boolean;
+  alwaysShowTitle?: boolean;
   onOpen: (e: CalendarEvent) => void;
 }) {
   return (
     <button
       type="button"
       className="cal-chip"
-      data-left={left || undefined}
-      data-right={right || undefined}
+      data-left={fromPreviousDay || undefined}
+      data-right={intoNextDay || undefined}
       style={{ "--chip-color": CATEGORY_COLOR[event.category] } as CSSProperties}
       title={`${event.ticker} · ${event.title}`}
       onClick={() => onOpen(event)}
     >
-      {label ? (
+      {named ? (
         <>
           <b>{event.ticker}</b>{" "}
-          <span className={full ? undefined : "cal-chip-title"}>{event.title}</span>
+          <span className={alwaysShowTitle ? undefined : "cal-chip-title"}>{event.title}</span>
         </>
       ) : (
         " "
@@ -113,8 +107,8 @@ function Month({
       {weeks.flatMap((week) => {
         const days = week.map(dayKey);
         const slots = layoutWeek(days, events);
-        return week.map((d, i) => {
-          const key = days[i];
+        return week.map((d, weekday) => {
+          const key = days[weekday];
           return (
             <div
               key={key}
@@ -125,7 +119,7 @@ function Month({
             >
               <div className="cal-day">{d.getDate()}</div>
               <div className="cal-events">
-                {slots[i].map((slot, lane) => {
+                {slots[weekday].map((slot, lane) => {
                   if (!slot) return <div key={`gap-${lane}`} className="cal-spacer" />;
                   const { event } = slot;
                   const end = event.ends_on ?? event.starts_on;
@@ -133,9 +127,9 @@ function Month({
                     <Chip
                       key={event.id}
                       event={event}
-                      label={event.starts_on === key || i === 0}
-                      left={event.starts_on < key}
-                      right={end > key}
+                      named={event.starts_on === key || weekday === 0}
+                      fromPreviousDay={event.starts_on < key}
+                      intoNextDay={end > key}
                       onOpen={onOpen}
                     />
                   );
@@ -186,7 +180,7 @@ function Week({
             </Text>
             <Stack gap={4}>
               {list.map((e) => (
-                <Chip key={e.id} event={e} full onOpen={onOpen} />
+                <Chip key={e.id} event={e} alwaysShowTitle onOpen={onOpen} />
               ))}
             </Stack>
           </Paper>

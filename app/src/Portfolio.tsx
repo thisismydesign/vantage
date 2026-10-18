@@ -86,7 +86,6 @@ function HoldingsTable({
   base: string;
   changes: Record<string, number | null>;
   names: Map<string, string>;
-  /** Phones: ticker only, no price source, columns packed tight. */
   compact: boolean;
 }) {
   const money = usePrivateMoney();

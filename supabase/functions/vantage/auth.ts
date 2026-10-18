@@ -1,5 +1,3 @@
-// Who is calling: a Supabase session token from the browser or an agent, or nobody.
-
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 export type Caller = { via: "session"; owner: string; email?: string } | { via: "none" };

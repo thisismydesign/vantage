@@ -1,5 +1,3 @@
-// Broker data for a signed-in owner, as their agent sent it: the latest positions snapshot, the daily NAV and every fill, read through row security; plus the pure builders that turn them into the Portfolio and Trades shapes the pages render.
-
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import type {
@@ -17,7 +15,6 @@ import { buildRoundTrips } from "./trades/roundtrips.ts";
 import type { ChartItem, ChartTheme } from "./api.ts";
 import { supabase } from "./supabase.ts";
 
-/** A `snapshot_positions` row: one holding on a statement date. */
 export type PositionRow = {
   account_id: string | null;
   symbol: string;
@@ -31,7 +28,7 @@ export type PositionRow = {
   unrealized_pnl: number | null;
   fx_rate_to_base: number | null;
 };
-/** A `trade_fills` row. `traded_at` is the exchange's wall time, without a zone. */
+/** `traded_at` is the exchange's wall time, without a zone. */
 export type FillRow = {
   id: string;
   traded_at: string;
@@ -66,7 +63,7 @@ export type Snapshot = {
   fetched_at: string;
 };
 
-/** A `nav_history` row: the account's value at a statement date, base currency. */
+/** Base currency. */
 export type NavRow = { as_of: string; nav: number; cash: number | null };
 
 export type BrokerData = {
@@ -98,7 +95,7 @@ export function useBrokerData(session: Session | null): BrokerData {
         .order("as_of", { ascending: false })
         .limit(1)
         .maybeSingle();
-      // PostgREST pages at a thousand rows; a few years of fills or days exceed that.
+      // PostgREST caps a response at a thousand rows; a few years of fills or days exceed that.
       const all = async <T>(table: string, columns: string, order: string[]) => {
         const rows: T[] = [];
         for (let from = 0; ; from += 1000) {
@@ -132,28 +129,30 @@ export function useBrokerData(session: Session | null): BrokerData {
   return data;
 }
 
-// ---------------------------------------------------------------- builders
-
-/** A broker symbol to a watchlist ticker: ticker, quote symbol (with or without suffix) or alias. */
 export function resolver(items: ChartItem[]): (symbol: string) => string {
-  const index = new Map<string, string>();
+  const withoutSuffix = (symbol: string) => symbol.split(".")[0];
+  const tickerBySymbol = new Map<string, string>();
   for (const item of items) {
-    index.set(item.ticker.toUpperCase(), item.ticker);
+    tickerBySymbol.set(item.ticker.toUpperCase(), item.ticker);
     if (item.quoteSymbol) {
-      index.set(item.quoteSymbol.toUpperCase(), item.ticker);
-      index.set(item.quoteSymbol.split(".")[0].toUpperCase(), item.ticker);
+      tickerBySymbol.set(item.quoteSymbol.toUpperCase(), item.ticker);
+      tickerBySymbol.set(withoutSuffix(item.quoteSymbol).toUpperCase(), item.ticker);
     }
-    for (const alias of item.aliases ?? []) index.set(alias.toUpperCase(), item.ticker);
+    for (const alias of item.aliases ?? []) tickerBySymbol.set(alias.toUpperCase(), item.ticker);
   }
-  return (symbol) =>
-    index.get(symbol.toUpperCase()) ?? index.get(symbol.split(".")[0].toUpperCase()) ?? symbol;
+  return function watchlistTicker(symbol) {
+    return (
+      tickerBySymbol.get(symbol.toUpperCase()) ??
+      tickerBySymbol.get(withoutSuffix(symbol).toUpperCase()) ??
+      symbol
+    );
+  };
 }
 
-/** Latest price for a ticker from the charts' 1D series: native, and the rate to `base`. */
 export type Pricing = (ticker: string) => {
   price: number;
   currency: string;
-  /** Base-currency units per unit of `currency` at that bar. */
+  /** Base-currency units per unit of `currency`. */
   rate: number | null;
   priceBase: number | null;
   previousClose: number | null;
@@ -183,7 +182,7 @@ export function pricingFrom(
 
 export type Built = {
   portfolio: Portfolio;
-  /** Day change per ticker, from the quote that priced it. */
+  /** Day change; null without a live quote. */
   changes: Record<string, number | null>;
   quoteAsOf: string | null;
 };

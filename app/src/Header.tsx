@@ -31,7 +31,6 @@ export function ColorSchemeToggle() {
   );
 }
 
-/** Hides account-sized figures; prices and percentages stay visible. */
 function PrivacyToggle() {
   const { hidden, setHidden } = usePrivacy();
   return (
@@ -46,7 +45,6 @@ function PrivacyToggle() {
   );
 }
 
-/** Page tabs: plain text, the active one underlined in the accent colour. */
 function Nav({ page, onNavigate }: { page: Page; onNavigate: (p: Page) => void }) {
   return (
     <Group gap={0} wrap="nowrap" h="100%" visibleFrom="sm">
@@ -76,7 +74,6 @@ function Nav({ page, onNavigate }: { page: Page; onNavigate: (p: Page) => void }
   );
 }
 
-/** Phones: a burger opens the page list; the bar's middle names the current page. */
 function BurgerNav({ page, onNavigate }: { page: Page; onNavigate: (p: Page) => void }) {
   const [opened, setOpened] = useState(false);
   useEffect(() => setOpened(false), [page]);
@@ -106,7 +103,6 @@ function BurgerNav({ page, onNavigate }: { page: Page; onNavigate: (p: Page) => 
   );
 }
 
-/** Vantage's bar: brand left, page tabs centred when the host leaves navigation to it, toggles right. */
 export function VantageBar({ page, onNavigate }: { page?: Page; onNavigate?: (p: Page) => void }) {
   const current = PAGES.find((p) => p.value === page)?.label;
   return (

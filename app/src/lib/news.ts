@@ -1,5 +1,3 @@
-// News rows for a signed-in owner, newest first, read through row security.
-
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import type { NewsItem, Sentiment } from "@shared/types.ts";

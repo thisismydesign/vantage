@@ -4,13 +4,12 @@ const EPS = 1e-9;
 
 interface Lot {
   quantity: number;
-  /** Price paid per unit plus the fill's commission spread over the fill. */
-  cost: number;
-  costBase: number;
+  unitCostWithCommission: number;
+  unitCostWithCommissionBase: number;
 }
 
 /**
- * Walks each name's fills with a FIFO lot queue — the broker's own matching — to find what is still held, what it cost, and the most capital the name ever tied up. Realised P&L is taken from the broker's closes so the two lenses agree to the cent.
+ * FIFO, matching the broker. Realised P&L comes from the broker's closes so it agrees with the closes view to the cent.
  */
 export function buildNames(
   fills: TradeFill[],
@@ -41,7 +40,6 @@ export function buildNames(
     for (const f of rows) {
       const perUnitCommission = f.commission / Math.abs(f.quantity);
       let remaining = f.quantity;
-      // Opposite sign consumes lots from the front; whatever is left opens new ones.
       while (
         Math.abs(remaining) > EPS &&
         lots.length &&
@@ -55,10 +53,17 @@ export function buildNames(
         if (Math.abs(lot.quantity) < EPS) lots.shift();
       }
       if (Math.abs(remaining) > EPS) {
-        const cost = f.price - perUnitCommission * Math.sign(remaining);
-        lots.push({ quantity: remaining, cost, costBase: toBase(f, cost) });
+        const unitCost = f.price - perUnitCommission * Math.sign(remaining);
+        lots.push({
+          quantity: remaining,
+          unitCostWithCommission: unitCost,
+          unitCostWithCommissionBase: toBase(f, unitCost),
+        });
       }
-      const held = lots.reduce((s, l) => s + Math.abs(l.quantity * l.costBase), 0);
+      const held = lots.reduce(
+        (s, l) => s + Math.abs(l.quantity * l.unitCostWithCommissionBase),
+        0,
+      );
       if (held > peakCostBase) peakCostBase = held;
     }
 
@@ -79,8 +84,8 @@ export function buildNames(
       closeWins: nameCloses.filter((c) => c.pnlBase > 0).length,
       status: Math.abs(openQuantity) < EPS ? "closed" : "held",
       openQuantity: Math.abs(openQuantity) < EPS ? 0 : openQuantity,
-      openCost: lots.reduce((s, l) => s + l.quantity * l.cost, 0),
-      openCostBase: lots.reduce((s, l) => s + l.quantity * l.costBase, 0),
+      openCost: lots.reduce((s, l) => s + l.quantity * l.unitCostWithCommission, 0),
+      openCostBase: lots.reduce((s, l) => s + l.quantity * l.unitCostWithCommissionBase, 0),
       peakCostBase,
       realisedBase: nameCloses.reduce((s, c) => s + c.pnlBase, 0),
       truncated: trips.truncated,

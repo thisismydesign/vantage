@@ -1,13 +1,12 @@
 import type { IntradaySeries } from "../../../shared/types.ts";
 
-/** The subset of a Yahoo chart response the trimming needs. */
 export interface Chart {
   meta: {
     currency: string;
     exchangeTimezoneName: string;
     previousClose?: number;
     currentTradingPeriod?: { regular: { start: Date | string; end: Date | string } };
-    /** Merged open stretches across the fetched days, ISO strings. */
+    /** Merged where they touch; ISO strings. */
     openPeriods?: { start: string; end: string }[];
   };
   quotes: { date: Date | string; close: number | null }[];
@@ -21,7 +20,7 @@ export function latestSession(ticker: string, chart: Chart, sessionCount = 1): I
     .filter((q) => q.close !== null && Number.isFinite(q.close))
     .map((q): [string, number] => [new Date(q.date).toISOString(), q.close!])
     .sort((a, b) => a[0].localeCompare(b[0]));
-  // Intl formatting is the expensive step; resolve each bar's day once.
+  // Intl formatting is expensive; resolve each bar's day once.
   const dayOf = points.map(([date]) => day(date));
   const session = dayOf.at(-1) ?? "";
   const days = new Set([...new Set(dayOf)].slice(-sessionCount));
@@ -54,9 +53,10 @@ export function intradayRange(
       ?.filter((p) => Date.parse(p.end) >= now - 86_400_000 && Date.parse(p.start) <= now)
       .map((p) => [p.start, p.end]);
   } else if (range === "1d") {
-    // 1D is the latest session with data: today once the first bar prints, otherwise the previous session, so Asian listings do not blank out after their midnight. The feed's previousClose then refers to that displayed session, so the baseline comes from the bar before it.
+    // Until today's first bar the previous session shows, so Asian listings do not blank out after their midnight. Yahoo's previousClose is then that session's own close.
     const day = new Intl.DateTimeFormat("en-CA", { timeZone: series.timeZone });
-    if (series.session && series.session < day.format(now)) {
+    const showingEarlierSession = series.session && series.session < day.format(now);
+    if (showingEarlierSession) {
       const prior = chart.quotes
         .filter((q) => q.close !== null && Number.isFinite(q.close))
         .filter((q) => day.format(new Date(q.date)) < series.session)

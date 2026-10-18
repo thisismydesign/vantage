@@ -1,5 +1,3 @@
-// The account's value over time, from the broker's daily NAV.
-
 import { AreaChart } from "@mantine/charts";
 import { Card, Group, Paper, SegmentedControl, Text } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
@@ -16,8 +14,7 @@ type Row = { x: number; nav: number; cash: number | null; day: string };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** €260k, $1.2M: axis labels short enough for a phone. */
-function short(n: number, currency: string) {
+function shortMoney(n: number, currency: string) {
   const abs = Math.abs(n);
   const [scale, suffix] = abs >= 1e6 ? [1e6, "M"] : abs >= 1e3 ? [1e3, "k"] : [1, ""];
   const digits = abs / scale < 10 && scale > 1 ? 1 : 0;
@@ -117,7 +114,7 @@ export function NavHistory({ history, base }: { history: NavRow[]; base: string 
             orientation: "right",
             width: compact ? 44 : 56,
             tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
-            tickFormatter: (v: number) => (hidden ? "" : short(v, base)),
+            tickFormatter: (v: number) => (hidden ? "" : shortMoney(v, base)),
           }}
           xAxisProps={{
             type: "number",

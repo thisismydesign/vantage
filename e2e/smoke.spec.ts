@@ -1,4 +1,3 @@
-// Runs against a local preview build before deploy and against production after.
 import { expect, test } from "@playwright/test";
 import { ANON_KEY, SUPABASE_URL, TEST_EMAIL, canSignIn, signIn } from "./session.ts";
 

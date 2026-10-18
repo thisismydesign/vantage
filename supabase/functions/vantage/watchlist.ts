@@ -1,5 +1,3 @@
-// Watchlist rows per owner, the template for new accounts, and seeding.
-
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 export type ThemeRow = { id: string; label: string; position: number };
@@ -33,7 +31,6 @@ const fail = (error: { message: string } | null) => {
   if (error) throw new Error(error.message);
 };
 
-/** The template or an owner's list, ordered as the page shows them. */
 export async function loadList(db: SupabaseClient, owner: string | null) {
   const [themes, items] = owner
     ? await Promise.all([
@@ -64,7 +61,6 @@ export async function loadList(db: SupabaseClient, owner: string | null) {
   return { themes: themes.data as ThemeRow[], items: items.data as WatchRow[] };
 }
 
-/** Copy the template into a fresh owner. */
 export async function seedDefaults(db: SupabaseClient, owner: string) {
   const { themes, items } = await loadList(db, null);
   if (themes.length)
@@ -91,7 +87,6 @@ export async function addGroup(db: SupabaseClient, owner: string, group: GroupIn
   return { id, label };
 }
 
-/** Yahoo's best match for a ticker or name, for items given without a symbol. */
 export async function resolveSymbol(query: string) {
   const url = new URL("https://query2.finance.yahoo.com/v1/finance/search");
   url.searchParams.set("q", query);
@@ -141,7 +136,6 @@ export async function addItem(db: SupabaseClient, owner: string, item: ItemInput
   return { ticker, name, symbol, groups: row.themes };
 }
 
-/** Public shape of a list, as the page and the API hand it out. */
 export const publicList = ({ themes, items }: { themes: ThemeRow[]; items: WatchRow[] }) => ({
   groups: themes.map((t) => ({ id: t.id, label: t.label })),
   items: items.map((i) => ({

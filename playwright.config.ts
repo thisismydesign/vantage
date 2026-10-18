@@ -1,9 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
-// E2E_BASE_URL points at a deployed site (the production smoke test) and reads .env; without it a preview build runs against the local stack. CI passes the same names as env vars.
-const base = process.env.E2E_BASE_URL;
+const deployedSite = process.env.E2E_BASE_URL;
 try {
-  process.loadEnvFile(base ? ".env" : ".env.development");
+  process.loadEnvFile(deployedSite ? ".env" : ".env.development");
 } catch {
   /* no file: CI */
 }
@@ -14,8 +13,8 @@ export default defineConfig({
   workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
-  use: { baseURL: base ?? "http://localhost:4199", trace: "retain-on-failure" },
-  webServer: base
+  use: { baseURL: deployedSite ?? "http://localhost:4199", trace: "retain-on-failure" },
+  webServer: deployedSite
     ? undefined
     : {
         command:

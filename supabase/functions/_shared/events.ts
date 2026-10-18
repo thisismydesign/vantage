@@ -1,5 +1,5 @@
 /**
- * What kind of thing a calendar entry is. Few on purpose: each gets a colour.
+ * Few on purpose: each gets a colour.
  * results   — the company reports: earnings, guidance, annual report
  * corporate — capital and structure: dividend, split, offering, lock-up, IPO, M&A
  * milestone — what the company stages: launch, conference, investor day, product

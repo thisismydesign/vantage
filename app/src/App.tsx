@@ -1,5 +1,3 @@
-// Vantage's pages. The host owns navigation: standalone it is the URL hash (see useHashPage); a host app may drive `page` itself.
-
 import { Alert, Group, Loader, Text } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 import type { BaseCurrency } from "@shared/types.ts";
@@ -24,12 +22,11 @@ export const PAGES = [
 export type Page = (typeof PAGES)[number]["value"];
 export const isPage = (v: string): v is Page => PAGES.some((p) => p.value === v);
 
-/** Standalone routing: `#/portfolio`; anything else is the watchlist. */
 export function useHashPage(): [Page, (p: Page) => void] {
   const read = () => {
-    // The first segment is the page; a page may read the rest (#/tools/margin).
-    const h = window.location.hash.replace(/^#\/?/, "").split("/")[0];
-    return isPage(h) ? h : "watchlist";
+    // Pages may read later segments (#/tools/margin).
+    const [first] = window.location.hash.replace(/^#\/?/, "").split("/");
+    return isPage(first) ? first : "watchlist";
   };
   const [page, setPage] = useState<Page>(read);
   useEffect(() => {
@@ -40,14 +37,12 @@ export function useHashPage(): [Page, (p: Page) => void] {
   return [page, (p) => (window.location.hash = `/${p}`)];
 }
 
-/** The account's own currency when the charts can convert to it, else euros. */
 const baseOf = (currency: string | null | undefined): BaseCurrency =>
   currency === "USD" ? "USD" : "EUR";
 
 function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
   const session = useSession();
   const broker = useBrokerData(session);
-  // Prices for the holdings come from the same 1D series the charts show.
   const [cycle, setCycle] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => !document.hidden && setCycle(Date.now()), 60_000);
@@ -109,6 +104,7 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
   return <TradesPage trades={trades} pricing={pricing} nav={broker.snapshot?.nav ?? null} />;
 }
 
+/** `page` is a prop so a host app can own navigation. */
 export function Vantage({ page }: { page: Page }) {
   if (page === "watchlist") return <Charts header={false} />;
   if (page === "calendar") return <CalendarPage />;

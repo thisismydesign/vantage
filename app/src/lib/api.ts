@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { IntradaySeries, VantageHistory } from "@shared/types.ts";
 
-/** Supabase project settings, baked in at build time. See .env.example. */
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY as string | undefined;
 export const CONFIGURED = Boolean(SUPABASE_URL);
@@ -14,7 +13,7 @@ export type ChartItem = {
   quoteSymbol: string | null;
   currency: string | null;
   themes: string[];
-  /** Other symbols a broker may report this holding under. */
+  /** Symbols a broker may report this holding under. */
   aliases: string[];
 };
 export type ChartsResponse = {
@@ -33,7 +32,6 @@ export const asSession = (s: IntradaySeries | VantageHistory | undefined) =>
 export const asHistory = (s: IntradaySeries | VantageHistory | undefined) =>
   s && "ranges" in s ? s : undefined;
 
-/** The function's base URL; agents and docs hang off it too. */
 export const API_BASE = `${SUPABASE_URL}/functions/v1/vantage`;
 
 async function fetchCharts(range: ChartRange, accessToken?: string): Promise<ChartsResponse> {
@@ -70,12 +68,10 @@ export type ChartData = {
   updating: boolean;
 };
 
-/**
- * One request per range; a null range fetches nothing. `cycle` is the time of the last refresh request; a new value refetches. The last good response is kept, in memory and in localStorage, so a failed refresh never blanks the charts.
- */
+/** A failed refresh keeps the last good response so the charts never blank. */
 export function useChartData(
   range: ChartRange | null,
-  cycle: number,
+  refreshRequestedAt: number,
   accessToken?: string,
 ): ChartData {
   const [state, setState] = useState<ChartData>(() => ({
@@ -103,6 +99,6 @@ export function useChartData(
     return () => {
       disposed = true;
     };
-  }, [range, cycle, accessToken]);
+  }, [range, refreshRequestedAt, accessToken]);
   return state;
 }

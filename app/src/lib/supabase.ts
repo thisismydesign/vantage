@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY as string | undefined;
 
-/** Browser client for auth and watchlist edits; undefined when not configured. */
 export const supabase =
   SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : undefined;
 
-// Under `vite dev` the server mints a session for the configured account so local work needs no email. One request per page load, shared across hooks.
+// The dev server mints a session so local work needs no email sign-in.
 let devSession: Promise<Session | null> | undefined;
 function mintDevSession(): Promise<Session | null> {
   devSession ??= fetch("/__dev/session")
@@ -34,7 +33,7 @@ export function useSession(): Session | null {
 
 export type SymbolMatch = { symbol: string; name: string; exchange: string; type: string };
 
-/** Yahoo symbol search, proxied by the Edge Function; needs a signed-in user. */
+/** Yahoo symbol search. */
 export async function lookupSymbols(query: string, accessToken: string): Promise<SymbolMatch[]> {
   const response = await fetch(
     `${SUPABASE_URL}/functions/v1/vantage?lookup=${encodeURIComponent(query)}`,

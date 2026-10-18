@@ -1,4 +1,3 @@
-// An agent records an event through the REST API; the owner sees it on the calendar.
 import { expect, test } from "@playwright/test";
 import { SUPABASE_URL, canSignIn, localDay, restHeaders, signIn } from "./session.ts";
 

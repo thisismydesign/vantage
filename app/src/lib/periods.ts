@@ -1,5 +1,3 @@
-// Look-back periods the broker pages filter by.
-
 export const PERIODS = [
   { value: "all", label: "All" },
   { value: "1y", label: "1Y" },
@@ -8,7 +6,7 @@ export const PERIODS = [
   { value: "3m", label: "3M" },
 ];
 
-/** First day of `period` as YYYY-MM-DD; empty for all of it. */
+/** YYYY-MM-DD; empty means no cutoff. */
 export function cutoff(period: string): string {
   const now = new Date();
   if (period === "ytd") return `${now.getUTCFullYear()}-01-01`;

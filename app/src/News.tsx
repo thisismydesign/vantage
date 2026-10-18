@@ -1,5 +1,3 @@
-// News: what the owner's agent recorded about the companies they follow, newest first, one group per day, filterable by company.
-
 import {
   Alert,
   Anchor,
@@ -20,8 +18,8 @@ import { dayKey } from "./lib/events.ts";
 import { SENTIMENT_COLOR, useNews } from "./lib/news.ts";
 import { useSession } from "./lib/supabase.ts";
 
-/** Rows revealed at a time; the list can run to thousands. */
-const PAGE = 100;
+/** The list can run to thousands. */
+const PAGE_SIZE = 100;
 
 function Row({ item }: { item: NewsItem }) {
   const color = item.sentiment ? SENTIMENT_COLOR[item.sentiment] : undefined;
@@ -66,7 +64,7 @@ export function NewsPage() {
   const session = useSession();
   const { items, loading, error } = useNews(session);
   const [ticker, setTicker] = useState<string | null>(null);
-  const [limit, setLimit] = useState(PAGE);
+  const [limit, setLimit] = useState(PAGE_SIZE);
   const tickers = useMemo(() => [...new Set(items.map((i) => i.ticker))].sort(), [items]);
   const filtered = ticker ? items.filter((i) => i.ticker === ticker) : items;
   const shown = filtered.slice(0, limit);
@@ -136,8 +134,8 @@ export function NewsPage() {
         </Stack>
       ))}
       {filtered.length > limit && (
-        <Button variant="subtle" size="xs" onClick={() => setLimit((l) => l + PAGE)}>
-          Show {Math.min(PAGE, filtered.length - limit)} more of {filtered.length - limit}
+        <Button variant="subtle" size="xs" onClick={() => setLimit((l) => l + PAGE_SIZE)}>
+          Show {Math.min(PAGE_SIZE, filtered.length - limit)} more of {filtered.length - limit}
         </Button>
       )}
     </Stack>

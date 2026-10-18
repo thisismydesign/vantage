@@ -1,4 +1,3 @@
-// An agent sends the daily NAV through the REST API; the portfolio charts it.
 import { expect, test } from "@playwright/test";
 import { SUPABASE_URL, canSignIn, localDay, restHeaders, seedSnapshot, signIn } from "./session.ts";
 

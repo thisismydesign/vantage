@@ -1,4 +1,3 @@
-// An agent records a news item through the REST API; the owner sees it on the news page.
 import { expect, test } from "@playwright/test";
 import { SUPABASE_URL, canSignIn, restHeaders, signIn } from "./session.ts";
 

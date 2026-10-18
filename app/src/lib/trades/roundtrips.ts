@@ -6,10 +6,7 @@ const EPS = 1e-9;
 const daysBetween = (a: string, b: string) =>
   Math.max(0, Math.round((Date.parse(b.slice(0, 10)) - Date.parse(a.slice(0, 10))) / DAY));
 
-/**
- * A fill that crosses zero closes one trade and opens the next. The fill is split pro rata, so each trade sees only the quantity that belongs to it.
- */
-function split(fill: TradeFill, quantity: number): [TradeFill, TradeFill] {
+function splitProRata(fill: TradeFill, quantity: number): [TradeFill, TradeFill] {
   const share = quantity / fill.quantity;
   const part = (f: number) => f * share;
   const rest = (f: number) => f * (1 - share);
@@ -51,7 +48,6 @@ function finish(
   const first = open.fills[0];
   const last = open.fills[open.fills.length - 1];
   const direction = first.quantity > 0 ? "long" : "short";
-  // Entry fills move the position away from zero; exit fills bring it back.
   const isEntry = (f: TradeFill) => (direction === "long" ? f.quantity > 0 : f.quantity < 0);
   const entries = open.fills.filter(isEntry);
   const exits = open.fills.filter((f) => !isEntry(f));
@@ -62,7 +58,7 @@ function finish(
 
   const closed = Math.abs(open.position) < EPS;
   const pnl = open.fills.reduce((s, f) => s + f.netCash, 0);
-  // Foreign stock is bought on a loan in that currency, so the currency's move while the position is held cancels against the loan. Converting the whole result at the exit rate scores the stock decision alone; the entry side is converted fill by fill because that is what the money was worth when committed.
+  // Foreign stock is bought on a loan in its currency, so the FX move cancels against the loan; the exit rate scores the stock decision alone. Entries convert fill by fill: what the money was worth when committed.
   const pnlBase = toBase(last, pnl);
   const entryValueBase = notionalBase(entries);
   const brokerPnls = open.fills.map((f) => f.brokerPnl).filter((v): v is number => v !== null);
@@ -96,9 +92,7 @@ function finish(
   };
 }
 
-/**
- * Walks the fills in time order and cuts them into flat-to-flat trades per instrument. Fills must already be deduplicated.
- */
+/** Fills must already be deduplicated. */
 export function buildRoundTrips(
   fills: TradeFill[],
   keyOf: (fill: TradeFill) => string,
@@ -125,18 +119,17 @@ export function buildRoundTrips(
     const key = keyOf(fill);
     let o = open.get(key);
     if (!o) {
-      // A closing fill on a flat book means the entry predates the statements.
-      const closingOnly =
+      const entryPredatesStatements =
         (fill.brokerPnl !== null && Math.abs(fill.brokerPnl) > EPS) ||
         /^C(;|$)/.test(fill.openClose ?? "");
-      o = { fills: [], position: 0, peak: 0, truncated: closingOnly };
+      o = { fills: [], position: 0, peak: 0, truncated: entryPredatesStatements };
       open.set(key, o);
     }
     const next = o.position + fill.quantity;
     const flips =
       o.position !== 0 && Math.sign(next) === -Math.sign(o.position) && Math.abs(next) > EPS;
     if (flips) {
-      const [closing, opening] = split(fill, -o.position);
+      const [closing, opening] = splitProRata(fill, -o.position);
       o.fills.push(closing);
       o.position = 0;
       close(key, o);

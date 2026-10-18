@@ -32,10 +32,8 @@ const slug = (label: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-/** What the user pastes to their agent; the instructions themselves live at /agent. */
 const ONBOARD_PROMPT = `Set up Vantage for me: fetch ${API_BASE}/agent and follow its instructions.`;
 
-/** The onboarding prompt in a small copyable field. */
 function AgentOnboarding() {
   const [copied, setCopied] = useState(false);
   return (
@@ -109,7 +107,6 @@ function EmailSignIn() {
   );
 }
 
-/** Two plain sections: sign in by email, or onboard through an agent. */
 function SignInForm() {
   const [mode, setMode] = useState<"signin" | "agent">("agent");
   return (
@@ -130,7 +127,7 @@ function SignInForm() {
 }
 
 function Editor({ accessToken }: { accessToken: string }) {
-  // The editor reads the tables directly (RLS lets a signed-in user), so it works from the header without the chart data in scope.
+  // Reads the tables directly (RLS allows it) so it works from the header without chart data.
   const [items, setItems] = useState<ChartItem[]>([]);
   const [themes, setThemes] = useState<ChartTheme[]>([]);
   const load = useCallback(async () => {
@@ -389,7 +386,6 @@ const SETTINGS = [
 ] as const;
 type SettingsTab = (typeof SETTINGS)[number]["value"];
 
-/** One modal, a tab per page; the menu opens it on the tab that was picked. */
 function SettingsModal({
   tab,
   onClose,
@@ -424,7 +420,6 @@ function SettingsModal({
   );
 }
 
-/** Profile button: the sign-in form when signed out, else settings and sign out. */
 export function ProfileMenu() {
   const session = useSession();
   const [settings, setSettings] = useState<SettingsTab | null>(null);

@@ -6,7 +6,6 @@ export const theme = createTheme({
   fontFamilyMonospace: "ui-monospace, SFMono-Regular, Menlo, Monaco, 'Cascadia Mono', monospace",
 });
 
-// Semantic colours shared by views: direction of a move, sentiment of an item.
 export const TONE = {
   positive: "teal",
   negative: "red",
@@ -24,7 +23,7 @@ export const ASSET_COLOR = {
   property: "grape.6",
 } as const;
 
-// Categorical identity per learning kind, in fixed order. Validated for CVD separation in light and dark.
+// Validated for CVD separation in light and dark; keep the order.
 export const KIND_COLOR = {
   book: "indigo.6",
   podcast: "orange.7",
@@ -33,13 +32,13 @@ export const KIND_COLOR = {
   post: "cyan.7",
 } as const;
 
-// Listened vs watched. Validated as a pair in light and dark.
+// Validated as a pair in light and dark.
 export const MEDIUM_COLOR = {
   audio: "violet.7",
   video: "green.8",
 } as const;
 
-/** Mantine's defaults read faint on dark backgrounds; lift body and secondary text. */
+/** Mantine's defaults read faint on dark backgrounds. */
 export const cssVariablesResolver: CSSVariablesResolver = () => ({
   variables: {},
   light: { "--mantine-color-dimmed": "var(--mantine-color-gray-7)" },
