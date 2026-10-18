@@ -1,3 +1,4 @@
 nodejs   24.13.1
 npm:pnpm 11.8.0
 supabase 2.109.1
+deno     2.1.4

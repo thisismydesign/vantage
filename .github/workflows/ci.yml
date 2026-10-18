@@ -24,6 +24,9 @@ jobs:
         with:
           node-version-file: .tool-versions
           cache: pnpm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version-file: .tool-versions
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
 
