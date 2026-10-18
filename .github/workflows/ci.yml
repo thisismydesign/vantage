@@ -59,9 +59,11 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.109.1
-      - run: supabase start -x studio,imgproxy,storage-api,realtime,postgres-meta,logflare,vector,supavisor,mailpit
+      # GHCR is next to the runners; the default registry, ECR Public, rate-limits shared runner IPs into minutes of retries.
+      - run: supabase start -x studio,imgproxy,postgres-meta,logflare,vector,supavisor,mailpit
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -113,7 +115,6 @@ jobs:
           node-version-file: .tool-versions
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()

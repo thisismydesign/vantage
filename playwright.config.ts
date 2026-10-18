@@ -23,5 +23,11 @@ export default defineConfig({
         reuseExistingServer: false,
         timeout: 120_000,
       },
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  // CI runners ship Google Chrome, which saves downloading Playwright's Chromium on every run.
+  projects: [
+    {
+      name: "chromium",
+      use: { browserName: "chromium", channel: process.env.CI ? "chrome" : undefined },
+    },
+  ],
 });
