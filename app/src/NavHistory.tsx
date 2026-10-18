@@ -1,7 +1,7 @@
 // The account's value over time, from the broker's daily NAV.
 
 import { AreaChart } from "@mantine/charts";
-import { Card, Group, Paper, SegmentedControl, Stack, Text } from "@mantine/core";
+import { Card, Group, Paper, SegmentedControl, Text } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { useMemo } from "react";
 import { dateTicks, niceTicks } from "./lib/axis.ts";
@@ -68,13 +68,8 @@ export function NavHistory({ history, base }: { history: NavRow[]; base: string 
 
   return (
     <Card withBorder>
-      <Group justify="space-between" align="flex-start" wrap="wrap" gap="xs">
-        <Stack gap={0}>
-          <Text fw={600}>Account value</Text>
-          <Text size="xs" c="dimmed">
-            Broker NAV at each statement · deposits and withdrawals move it too
-          </Text>
-        </Stack>
+      <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+        <Text fw={600}>Account value</Text>
         <SegmentedControl size="xs" data={PERIODS} value={period} onChange={setPeriod} />
       </Group>
       {first && last && (
