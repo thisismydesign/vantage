@@ -545,14 +545,10 @@ async function restOpenapi(api: Endpoints) {
   ]);
   const pick = (o: Record<string, unknown> | undefined, strip: (k: string) => string) =>
     Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => keep.has(strip(k))));
-  return {
-    ...spec,
-    paths: pick(spec.paths, (k) => k.replace(/^\//, "")),
-    definitions: pick(spec.definitions, (k) => k),
   const u = endpoints(api);
   const rest = new URL(u.rest);
-  };
-}
+  return {
+    ...spec,
     // PostgREST describes itself from inside the stack; callers go through the gateway.
     host: rest.host,
     basePath: rest.pathname,
@@ -578,6 +574,10 @@ async function restOpenapi(api: Endpoints) {
       },
     },
     security: [{ apikey: [], session: [] }],
+    paths: pick(spec.paths, (k) => k.replace(/^\//, "")),
+    definitions: pick(spec.definitions, (k) => k),
+  };
+}
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
