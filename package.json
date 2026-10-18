@@ -2,6 +2,7 @@
   "name": "vantage",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Vantage — hosted watchlist, charts, portfolio and trades on Supabase and Cloudflare.",
   "packageManager": "pnpm@11.8.0",

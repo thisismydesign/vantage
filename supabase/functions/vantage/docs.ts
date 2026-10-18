@@ -1,5 +1,3 @@
-export const SITE = "https://vantage.personal-553.workers.dev";
-
 export type Endpoints = {
   /** This function. */
   base: string;
@@ -7,6 +5,8 @@ export type Endpoints = {
   supabase: string;
   /** Publishable key; sent as the `apikey` header on every Supabase call. */
   anonKey: string;
+  /** The web app. */
+  site: string;
 };
 
 export const endpoints = (e: Endpoints) => ({
@@ -20,7 +20,7 @@ export const endpoints = (e: Endpoints) => ({
   openapi: `${e.base}/openapi.json`,
   instructions: `${e.base}/agent`,
   anonKey: e.anonKey,
-  site: SITE,
+  site: e.site,
 });
 
 export async function agentInstructions(e: Endpoints) {

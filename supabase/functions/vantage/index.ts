@@ -7,7 +7,7 @@ import { buildRanges, HISTORY_RANGES, RANGE_SOURCE, thin } from "../_shared/hist
 import type { HistoryRange, RangeSeries } from "../../../shared/types.ts";
 import { KEY_PREFIX, sha256Hex } from "../_shared/keys.ts";
 import { resolveCaller, type Caller } from "./auth.ts";
-import { agentInstructions, endpoints, openapi, SITE, type Endpoints } from "./docs.ts";
+import { agentInstructions, endpoints, openapi, type Endpoints } from "./docs.ts";
 import {
   addGroup,
   addItem,
@@ -34,6 +34,7 @@ type CacheRow = { symbol: string; range: string; fetched_at: string; data: unkno
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 // The runtime's SUPABASE_ANON_KEY is the new publishable key; VANTAGE_ANON_KEY pins the one the project accepts.
 const ANON_KEY = Deno.env.get("VANTAGE_ANON_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+const SITE = Deno.env.get("VANTAGE_SITE_URL")!;
 const db = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false },
 });
@@ -476,7 +477,7 @@ async function onboard(body: OnboardBody, api: Endpoints, ip: string) {
   const signInEmail = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
     method: "POST",
     headers: { apikey: ANON_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ email, create_user: false, options: { email_redirect_to: SITE } }),
+    body: JSON.stringify({ email, create_user: false, options: { email_redirect_to: api.site } }),
   });
   return json(
     {
@@ -570,6 +571,7 @@ Deno.serve(async (request) => {
     base: `https://${url.host}/functions/v1/vantage`,
     supabase: SUPABASE_URL,
     anonKey: ANON_KEY,
+    site: SITE,
   };
   const method = request.method;
 

@@ -1,4 +1,4 @@
--- The template new accounts start from and anonymous visitors see; a copy of production's.
+-- The template new accounts start from and anonymous visitors see.
 insert into public.default_themes (id, label, position) values
   ('photonics', 'Photonics', 0),
   ('memory', 'Memory', 1),

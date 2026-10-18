@@ -1,11 +1,11 @@
 # Vantage
 
-Portfolio manager. Live: https://vantage.personal-553.workers.dev
+Portfolio manager.
 
 ## Docs
 
 - `README.md` — for humans.
-- `docs/` — detailed documentation. Read [`docs/technical.md`](docs/technical.md) first.
+- `docs/` — documentation.
 - `AGENTS.md` — how to work here.
 
 ## Layout

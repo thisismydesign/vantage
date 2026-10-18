@@ -1,6 +1,6 @@
 -- Multi-tenancy. Every signed-in user owns a watchlist; the previous single
--- list becomes the template new accounts start from, and the first owner's
--- list. Agents act through API keys that the Edge Function hashes and checks.
+-- list becomes the template new accounts start from. Agents act through API
+-- keys that the Edge Function hashes and checks.
 
 -- Templates: what anonymous visitors see and what new accounts are seeded with.
 create table public.default_themes (
@@ -29,9 +29,7 @@ alter table public.watchlist_themes
 alter table public.watchlist
   add column owner uuid references auth.users (id) on delete cascade default auth.uid();
 
--- The first account inherits the existing rows; anything unowned is removed.
-update public.watchlist_themes set owner = (select id from auth.users where email = 'owner@example.com');
-update public.watchlist set owner = (select id from auth.users where email = 'owner@example.com');
+-- The existing rows live on as the template; nothing unowned stays.
 delete from public.watchlist_themes where owner is null;
 delete from public.watchlist where owner is null;
 alter table public.watchlist_themes alter column owner set not null;

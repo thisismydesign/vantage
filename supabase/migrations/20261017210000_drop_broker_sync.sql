@@ -1,9 +1,6 @@
 -- Vantage stores and shows broker data; it no longer fetches it. Statements
--- arrive from the owner's agent through the REST API, so the scheduled sync,
--- its connection table and the Vault copies of broker tokens go.
-
-select cron.unschedule('broker-sync-morning')
-where exists (select 1 from cron.job where jobname = 'broker-sync-morning');
+-- arrive from the owner's agent through the REST API, so its connection table
+-- and the Vault copies of broker tokens go.
 
 delete from vault.secrets where name like 'ibkr:%' or name = 'broker_sync_key';
 

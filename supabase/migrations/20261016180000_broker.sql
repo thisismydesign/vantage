@@ -3,9 +3,6 @@
 -- Owners read their rows through row security; only the broker-sync function
 -- (service role) writes, after decrypting the token through the helpers below.
 
-create extension if not exists pg_cron;
-create extension if not exists pg_net;
-
 -- Aliases let a broker symbol resolve to a watchlist ticker (IBKR calls IQE "IQEl").
 alter table public.watchlist add column aliases text[] not null default '{}';
 alter table public.default_watchlist add column aliases text[] not null default '{}';
@@ -128,20 +125,3 @@ grant execute on function public.broker_token_get(uuid) to service_role;
 grant execute on function public.broker_token_delete(uuid) to service_role;
 grant execute on function public.vault_put(text, text) to service_role;
 
--- Flex statements for a session appear overnight; IBKR publishes no cutoff.
--- Try every hour through the morning (UTC); the function skips owners whose
--- latest statement already covers the previous session.
-select cron.schedule(
-  'broker-sync-morning',
-  '0 5-11 * * *',
-  $$
-  select net.http_post(
-    url := 'https://<project-ref>.supabase.co/functions/v1/broker-sync',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'broker_sync_key')
-    ),
-    body := '{"all": true}'::jsonb
-  );
-  $$
-);
