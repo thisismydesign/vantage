@@ -372,6 +372,8 @@ const clientIp = (request: Request) =>
 
 async function throttled(ip: string, route: string, perHour: number) {
   const since = new Date(Date.now() - 3_600_000).toISOString();
+  // Only the last hour counts, so older rows go; the table stays an hour long.
+  await db.from("throttle").delete().lt("at", since);
   const { count } = await db
     .from("throttle")
     .select("id", { count: "exact", head: true })
@@ -492,17 +494,29 @@ async function onboard(body: OnboardBody, api: Endpoints, ip: string) {
   );
 }
 
+type RestSpec = { paths?: Record<string, unknown>; definitions?: Record<string, unknown> };
+
+// The schema changes only with a migration, and every deploy starts fresh instances; the TTL covers migrations pushed on their own.
+const REST_SPEC_TTL_MS = 10 * 60_000;
+let restSpec: { at: number; spec: Promise<RestSpec> } | undefined;
+
 // Supabase serves its generated REST description only to the service role.
-async function restOpenapi(api: Endpoints) {
+function fetchRestSpec(): Promise<RestSpec> {
+  if (restSpec && Date.now() - restSpec.at < REST_SPEC_TTL_MS) return restSpec.spec;
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+  const spec = fetch(`${SUPABASE_URL}/rest/v1/`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
+  }).then(async (response) => {
+    if (!response.ok) throw new Error(`REST description unavailable (${response.status})`);
+    return (await response.json()) as RestSpec;
   });
-  if (!response.ok) throw new Error(`REST description unavailable (${response.status})`);
-  const spec = (await response.json()) as {
-    paths?: Record<string, unknown>;
-    definitions?: Record<string, unknown>;
-  };
+  restSpec = { at: Date.now(), spec };
+  spec.catch(() => (restSpec = undefined));
+  return spec;
+}
+
+async function restOpenapi(api: Endpoints) {
+  const spec = await fetchRestSpec();
   const sessionPaths = new Set([
     "watchlist",
     "watchlist_themes",
