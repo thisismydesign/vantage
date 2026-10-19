@@ -295,14 +295,6 @@ export function CalendarPage() {
   const [cursor, setCursor] = useState(() => new Date());
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
 
-  if (!session)
-    return (
-      <Alert title="Sign in to see your calendar">
-        Events are private to your account. Your agent records them through the API; sign in from
-        the profile menu.
-      </Alert>
-    );
-
   const step = (n: number) =>
     setCursor((c) =>
       view === "month"

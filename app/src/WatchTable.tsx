@@ -4,6 +4,7 @@ import type { BaseCurrency, HistoryRange } from "@shared/types.ts";
 import type { Display } from "./Charts.tsx";
 import { asHistory, asSession, type ChartItem, type ChartsResponse } from "./lib/api.ts";
 import { resolver, type PositionRow } from "./lib/broker.ts";
+import { demoBroker } from "./lib/demo.ts";
 import { money, signedPct } from "./lib/format.ts";
 import { supabase, useSession } from "./lib/supabase.ts";
 import { TONE } from "./theme.ts";
@@ -98,8 +99,12 @@ export function useHeld(items: ChartItem[], enabled: boolean): Set<string> | nul
     null,
   );
   useEffect(() => {
-    if (!enabled || !session || !supabase) {
+    if (!enabled || session === undefined) {
       setPositions(null);
+      return;
+    }
+    if (!session || !supabase) {
+      setPositions(demoBroker().snapshot?.positions ?? null);
       return;
     }
     let disposed = false;

@@ -85,13 +85,6 @@ export function NewsPage() {
     return [...byDay.entries()];
   }, [shown]);
 
-  if (!session)
-    return (
-      <Alert title="Sign in to see your news">
-        News is private to your account. Your agent records it through the API; sign in from the
-        profile menu.
-      </Alert>
-    );
   return (
     <Stack gap="md">
       <Group justify="space-between" gap="xs">

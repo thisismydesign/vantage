@@ -1,4 +1,3 @@
-import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import type {
   BaseCurrency,
@@ -13,7 +12,8 @@ import type {
 import { buildNames } from "./trades/names.ts";
 import { buildRoundTrips } from "./trades/roundtrips.ts";
 import type { ChartItem, ChartTheme } from "./api.ts";
-import { supabase } from "./supabase.ts";
+import { demoBroker } from "./demo.ts";
+import { supabase, type SessionState } from "./supabase.ts";
 
 export type PositionRow = {
   account_id: string | null;
@@ -77,11 +77,15 @@ export type BrokerData = {
 
 const EMPTY: BrokerData = { snapshot: null, history: [], fills: [], loading: false };
 
-export function useBrokerData(session: Session | null): BrokerData {
+export function useBrokerData(session: SessionState): BrokerData {
   const [data, setData] = useState<BrokerData>(EMPTY);
   useEffect(() => {
+    if (session === undefined) {
+      setData({ ...EMPTY, loading: true });
+      return;
+    }
     if (!session || !supabase) {
-      setData(EMPTY);
+      setData(demoBroker());
       return;
     }
     let disposed = false;

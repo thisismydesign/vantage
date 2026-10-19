@@ -25,12 +25,6 @@ function useHashTool(): [Tool, (t: Tool) => void] {
 function MarginSizingTool() {
   const session = useSession();
   const broker = useBrokerData(session);
-  if (!session)
-    return (
-      <Alert title="Sign in to use the tools">
-        They work on your own portfolio. Sign in from the profile menu.
-      </Alert>
-    );
   if (broker.loading && !broker.snapshot)
     return (
       <Group gap="sm">

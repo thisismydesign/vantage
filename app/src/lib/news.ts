@@ -1,7 +1,7 @@
-import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import type { NewsItem, Sentiment } from "@shared/types.ts";
-import { supabase } from "./supabase.ts";
+import { demoNews } from "./demo.ts";
+import { supabase, type SessionState } from "./supabase.ts";
 import { TONE } from "../theme.ts";
 
 export const NEWS_CHANGED = "vantage:news-changed";
@@ -15,7 +15,7 @@ export const SENTIMENT_COLOR: Record<Sentiment, string> = {
 
 export type NewsData = { items: NewsItem[]; loading: boolean; error?: string };
 
-export function useNews(session: Session | null): NewsData {
+export function useNews(session: SessionState): NewsData {
   const [data, setData] = useState<NewsData>({ items: [], loading: false });
   const [version, setVersion] = useState(0);
   useEffect(() => {
@@ -24,8 +24,12 @@ export function useNews(session: Session | null): NewsData {
     return () => window.removeEventListener(NEWS_CHANGED, bump);
   }, []);
   useEffect(() => {
+    if (session === undefined) {
+      setData({ items: [], loading: true });
+      return;
+    }
     if (!session || !supabase) {
-      setData({ items: [], loading: false });
+      setData({ items: demoNews(), loading: false });
       return;
     }
     let disposed = false;

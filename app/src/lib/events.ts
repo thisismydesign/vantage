@@ -1,9 +1,9 @@
 // Dates are local calendar days, never instants.
 
-import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import type { CalendarEvent, EventCategory } from "@shared/types.ts";
-import { supabase } from "./supabase.ts";
+import { demoEvents } from "./demo.ts";
+import { supabase, type SessionState } from "./supabase.ts";
 
 export const EVENTS_CHANGED = "vantage:events-changed";
 
@@ -19,7 +19,7 @@ export const CATEGORY_COLOR: Record<EventCategory, string> = {
 
 export type EventsData = { events: CalendarEvent[]; loading: boolean; error?: string };
 
-export function useEvents(session: Session | null): EventsData {
+export function useEvents(session: SessionState): EventsData {
   const [data, setData] = useState<EventsData>({ events: [], loading: false });
   const [version, setVersion] = useState(0);
   useEffect(() => {
@@ -28,8 +28,12 @@ export function useEvents(session: Session | null): EventsData {
     return () => window.removeEventListener(EVENTS_CHANGED, bump);
   }, []);
   useEffect(() => {
+    if (session === undefined) {
+      setData({ events: [], loading: true });
+      return;
+    }
     if (!session || !supabase) {
-      setData({ events: [], loading: false });
+      setData({ events: demoEvents(), loading: false });
       return;
     }
     let disposed = false;

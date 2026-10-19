@@ -15,7 +15,7 @@ app/                     web app; app/wrangler.jsonc deploys app/dist
 shared/types.ts          shapes shared by app and functions
 supabase/functions/      vantage (API, onboarding), _shared helpers
 supabase/migrations/     schema, policies, grants
-supabase/seed/           local data: the template and a dev account
+supabase/seed/           local data: the template, and the dev account (from _shared/demo.ts)
 lint/                    custom ESLint rules
 tests/                   node:test unit specs
 ```
@@ -24,9 +24,9 @@ tests/                   node:test unit specs
 
 ```bash
 mise install && cp .env.example .env && pnpm install && supabase link
-supabase start                                 # local stack; needs Docker
-pnpm run dev                                   # local stack, signed in as dev@vantage.test
-supabase db reset                              # re-apply migrations and seed
+supabase start && node supabase/seed/dev-account.ts  # local stack (needs Docker) and the dev account
+pnpm run dev                                   # local stack; the account icon signs in as dev@vantage.test
+pnpm run db:reset                              # re-apply migrations and seeds, including the dev account
 pnpm run lint && pnpm run typecheck && pnpm run test
 pnpm run e2e                                   # preview build + browser specs on the local stack
 E2E_BASE_URL=https://... pnpm run e2e          # same specs against a deployed site; needs .env

@@ -6,6 +6,7 @@ import { BASES, convert, convertSeries, type RateBook, type RateSeries } from ".
 import { buildRanges, HISTORY_RANGES, RANGE_SOURCE, thin } from "../_shared/history.ts";
 import type { HistoryRange, RangeSeries } from "../../../shared/types.ts";
 import { KEY_PREFIX, sha256Hex } from "../_shared/keys.ts";
+import { demoList } from "../_shared/demo.ts";
 import { resolveCaller, type Caller } from "./auth.ts";
 import { agentInstructions, endpoints, openapi, type Endpoints } from "./docs.ts";
 import {
@@ -612,6 +613,9 @@ Deno.serve(async (request) => {
         : json({ error: "Sign in first." }, 401);
     const range = url.searchParams.get("range") ?? "1d";
     if (!(range in TTL_MS)) return json({ error: "Unsupported range." }, 400);
+    // The demo list is fixed, so anonymous callers only ever reach symbols the cache already bounds.
+    if (url.searchParams.has("demo")) return json(await prices(range as Range, demoList()));
+    if (!owner) return json({ error: "Sign in first." }, 401);
     return json(await prices(range as Range, await loadList(db, owner)));
   } catch (e) {
     return json({ error: (e as Error).message }, 500);

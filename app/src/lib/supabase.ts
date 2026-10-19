@@ -7,24 +7,21 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY as string | undefined;
 export const supabase =
   SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : undefined;
 
-// The dev server mints a session so local work needs no email sign-in.
-let devSession: Promise<Session | null> | undefined;
-function mintDevSession(): Promise<Session | null> {
-  devSession ??= fetch("/__dev/session")
-    .then((r) => (r.ok ? (r.json() as Promise<Session>) : null))
-    .catch(() => null);
-  return devSession;
+/** Dev server only: signs in as the local dev account, which needs no email. */
+export async function signInAsDevAccount() {
+  const response = await fetch("/__dev/session");
+  if (!response.ok) throw new Error(await response.text());
+  const { error } = await supabase!.auth.setSession((await response.json()) as Session);
+  if (error) throw error;
 }
 
-export function useSession(): Session | null {
-  const [session, setSession] = useState<Session | null>(null);
+/** Undefined until known; null when signed out. */
+export type SessionState = Session | null | undefined;
+
+export function useSession(): SessionState {
+  const [session, setSession] = useState<SessionState>(supabase ? undefined : null);
   useEffect(() => {
     if (!supabase) return;
-    void supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session || !import.meta.env.DEV) return setSession(data.session);
-      const minted = await mintDevSession();
-      if (minted) await supabase!.auth.setSession(minted);
-    });
     const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
     return () => data.subscription.unsubscribe();
   }, []);

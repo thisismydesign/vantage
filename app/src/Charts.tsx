@@ -645,7 +645,7 @@ export function Charts({ header = true }: { header?: boolean }) {
   const compact = view === "compact";
   const list = view === "list";
   const [base, setBase] = useLocalState<Display>("charts:base", "EUR");
-  const [range, setRange] = useLocalState("charts:range:v2", "24h");
+  const [range, setRange] = useLocalState("charts:range:v2", "1d");
   const [selected, setSelected] = useLocalState<string[]>("charts:tickers", []);
   const [grouped, setGrouped] = useLocalState("charts:grouped", true);
   const [gaps, setGaps] = useLocalState<Gaps>("charts:gaps", "real");
@@ -685,9 +685,9 @@ export function Charts({ header = true }: { header?: boolean }) {
   const activeRange = RANGES.find((r) => r.value === range) ?? RANGES[0];
   const apiRange: ChartRange = list ? "1d" : isIntraday ? (range as ChartRange) : "history";
   const session = useSession();
-  const { data, status, updating } = useChartData(apiRange, cycle, session?.access_token);
-  const week = useChartData(list ? "1w" : null, cycle, session?.access_token);
-  const history = useChartData(list ? "history" : null, historyCycle, session?.access_token);
+  const { data, status, updating } = useChartData(apiRange, cycle, session);
+  const week = useChartData(list ? "1w" : null, cycle, session);
+  const history = useChartData(list ? "history" : null, historyCycle, session);
   // A cached response for another range must not render under this one.
   const live = data?.range === apiRange ? data : undefined;
   // The watchlist is the same in every response, so the last one keeps the controls usable.

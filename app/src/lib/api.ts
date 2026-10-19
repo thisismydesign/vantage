@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { IntradaySeries, VantageHistory } from "@shared/types.ts";
+import type { SessionState } from "./supabase.ts";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY as string | undefined;
@@ -34,8 +35,9 @@ export const asHistory = (s: IntradaySeries | VantageHistory | undefined) =>
 
 export const API_BASE = `${SUPABASE_URL}/functions/v1/vantage`;
 
+/** Signed out, the demo list. */
 async function fetchCharts(range: ChartRange, accessToken?: string): Promise<ChartsResponse> {
-  const response = await fetch(`${API_BASE}?range=${range}`, {
+  const response = await fetch(`${API_BASE}?range=${range}${accessToken ? "" : "&demo"}`, {
     headers: {
       ...(SUPABASE_KEY ? { apikey: SUPABASE_KEY } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
@@ -46,17 +48,22 @@ async function fetchCharts(range: ChartRange, accessToken?: string): Promise<Cha
   return (await response.json()) as ChartsResponse;
 }
 
-const cacheKey = (range: ChartRange) => `vantage:data:v2:${range}`;
-function readCache(range: ChartRange): ChartsResponse | undefined {
+/** `owner` is the user id, or "demo" signed out. */
+const cacheKey = (owner: string, range: ChartRange) => `vantage:data:v3:${owner}:${range}`;
+function readCache(
+  owner: string | undefined,
+  range: ChartRange | null,
+): ChartsResponse | undefined {
+  if (!owner || !range) return undefined;
   try {
-    return JSON.parse(localStorage.getItem(cacheKey(range)) ?? "null") ?? undefined;
+    return JSON.parse(localStorage.getItem(cacheKey(owner, range)) ?? "null") ?? undefined;
   } catch {
     return undefined;
   }
 }
-function writeCache(range: ChartRange, data: ChartsResponse) {
+function writeCache(owner: string, range: ChartRange, data: ChartsResponse) {
   try {
-    localStorage.setItem(cacheKey(range), JSON.stringify(data));
+    localStorage.setItem(cacheKey(owner, range), JSON.stringify(data));
   } catch {
     /* Storage may be full or unavailable. */
   }
@@ -64,34 +71,42 @@ function writeCache(range: ChartRange, data: ChartsResponse) {
 
 export type ChartData = {
   data?: ChartsResponse;
+  /** Whose data `data` is. */
+  owner?: string;
   status: "loading" | "ok" | "failed";
   updating: boolean;
 };
 
-/** A failed refresh keeps the last good response so the charts never blank. */
+/** A failed refresh keeps the last good response so the charts never blank. Waits while the session is unknown. */
 export function useChartData(
   range: ChartRange | null,
   refreshRequestedAt: number,
-  accessToken?: string,
+  session: SessionState,
 ): ChartData {
+  const owner = session === undefined ? undefined : (session?.user.id ?? "demo");
+  const accessToken = session?.access_token;
   const [state, setState] = useState<ChartData>(() => ({
-    data: range ? readCache(range) : undefined,
+    data: readCache(owner, range),
     status: "loading",
     updating: Boolean(range),
   }));
   useEffect(() => {
-    if (!CONFIGURED || !range) return;
+    if (!CONFIGURED || !range || !owner) return;
     let disposed = false;
     setState((previous) => ({
       ...previous,
-      data: previous.data?.range === range ? previous.data : readCache(range),
+      data:
+        previous.data?.range === range && previous.owner === owner
+          ? previous.data
+          : readCache(owner, range),
+      owner,
       updating: true,
     }));
     fetchCharts(range, accessToken)
       .then((data) => {
         if (disposed) return;
-        writeCache(range, data);
-        setState({ data, status: "ok", updating: false });
+        writeCache(owner, range, data);
+        setState({ data, owner, status: "ok", updating: false });
       })
       .catch(() => {
         if (!disposed) setState((previous) => ({ ...previous, status: "failed", updating: false }));
@@ -99,6 +114,6 @@ export function useChartData(
     return () => {
       disposed = true;
     };
-  }, [range, refreshRequestedAt, accessToken]);
+  }, [range, refreshRequestedAt, owner, accessToken]);
   return state;
 }

@@ -21,10 +21,17 @@ import { useCallback, useEffect, useState } from "react";
 import { AgentKeys } from "./AgentKeys.tsx";
 import type { ChartItem, ChartTheme } from "./lib/api.ts";
 import { API_BASE } from "./lib/api.ts";
-import { lookupSymbols, supabase, useSession, type SymbolMatch } from "./lib/supabase.ts";
+import {
+  lookupSymbols,
+  signInAsDevAccount,
+  supabase,
+  useSession,
+  type SymbolMatch,
+} from "./lib/supabase.ts";
 
 /** Fired on `window` after any watchlist edit, so open charts refetch. */
 export const WATCHLIST_CHANGED = "vantage:watchlist-changed";
+export const OPEN_SIGN_IN = "vantage:open-sign-in";
 
 const slug = (label: string) =>
   label
@@ -423,12 +430,34 @@ function SettingsModal({
 export function ProfileMenu() {
   const session = useSession();
   const [settings, setSettings] = useState<SettingsTab | null>(null);
+  const [signInOpen, setSignInOpen] = useState(false);
+  useEffect(() => {
+    const open = () => setSignInOpen(true);
+    window.addEventListener(OPEN_SIGN_IN, open);
+    return () => window.removeEventListener(OPEN_SIGN_IN, open);
+  }, []);
   if (!supabase) return null;
   if (!session)
     return (
-      <Popover width={280} position="bottom-end" shadow="md">
+      <Popover
+        width={280}
+        position="bottom-end"
+        shadow="md"
+        opened={signInOpen}
+        onChange={setSignInOpen}
+      >
         <Popover.Target>
-          <ActionIcon variant="subtle" aria-label="Sign in" size="lg">
+          <ActionIcon
+            variant="subtle"
+            aria-label="Sign in"
+            size="lg"
+            onClick={() =>
+              // Locally, the icon signs straight in as the dev account; the banner link still opens the forms.
+              import.meta.env.DEV
+                ? signInAsDevAccount().catch(() => setSignInOpen(true))
+                : setSignInOpen((o) => !o)
+            }
+          >
             <IconUser size={20} />
           </ActionIcon>
         </Popover.Target>

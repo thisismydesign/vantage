@@ -1,4 +1,4 @@
-import { Alert, Group, Loader, Text } from "@mantine/core";
+import { Alert, Anchor, Group, Loader, Text } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 import type { BaseCurrency } from "@shared/types.ts";
 import { CalendarPage } from "./Calendar.tsx";
@@ -9,7 +9,8 @@ import { PortfolioPage } from "./Portfolio.tsx";
 import { TradesPage } from "./Trades.tsx";
 import { useChartData } from "./lib/api.ts";
 import { buildPortfolio, buildTrades, pricingFrom, useBrokerData } from "./lib/broker.ts";
-import { useSession } from "./lib/supabase.ts";
+import { supabase, useSession } from "./lib/supabase.ts";
+import { OPEN_SIGN_IN } from "./Watchlist.tsx";
 
 export const PAGES = [
   { value: "watchlist", label: "Watchlist" },
@@ -48,7 +49,7 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
     const timer = window.setInterval(() => !document.hidden && setCycle(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
-  const charts = useChartData("1d", cycle, session?.access_token);
+  const charts = useChartData("1d", cycle, session);
   const live = charts.data?.range === "1d" ? charts.data : undefined;
   const base = baseOf(broker.snapshot?.base_currency);
   const pricing = useMemo(() => pricingFrom(live?.series, base), [live, base]);
@@ -64,18 +65,12 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
     [broker.fills, live, base],
   );
 
-  if (!session)
-    return (
-      <Alert title="Sign in to see your portfolio">
-        Positions and trades are private to your account. Sign in from the profile menu.
-      </Alert>
-    );
-  if (broker.loading && !broker.snapshot)
+  if ((broker.loading && !broker.snapshot) || (broker.snapshot && !live))
     return (
       <Group gap="sm">
         <Loader size="sm" />
         <Text size="sm" c="dimmed">
-          Loading broker data…
+          {broker.snapshot ? "Loading prices…" : "Loading broker data…"}
         </Text>
       </Group>
     );
@@ -104,11 +99,34 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
   return <TradesPage trades={trades} pricing={pricing} nav={broker.snapshot?.nav ?? null} />;
 }
 
-/** `page` is a prop so a host app can own navigation. */
-export function Vantage({ page }: { page: Page }) {
+function PageContent({ page }: { page: Page }) {
   if (page === "watchlist") return <Charts header={false} />;
   if (page === "calendar") return <CalendarPage />;
   if (page === "news") return <NewsPage />;
   if (page === "tools") return <ToolsPage />;
   return <BrokerPages page={page} />;
+}
+
+/** `page` is a prop so a host app can own navigation. */
+export function Vantage({ page }: { page: Page }) {
+  const session = useSession();
+  return (
+    <>
+      {session === null && supabase && (
+        <Alert variant="light" py="xs" mb="md">
+          <Text size="sm" ta="center">
+            You are looking at a demo account.{" "}
+            <Anchor
+              component="button"
+              size="sm"
+              onClick={() => window.dispatchEvent(new Event(OPEN_SIGN_IN))}
+            >
+              Sign up to customize.
+            </Anchor>
+          </Text>
+        </Alert>
+      )}
+      <PageContent page={page} />
+    </>
+  );
 }
