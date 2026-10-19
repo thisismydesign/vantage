@@ -379,10 +379,14 @@ authorization_url_path = "/oauth/consent"
 allow_dynamic_registration = false
 
 [functions.vantage]
-# Public read-only endpoint; the browser calls it without a session.
+# Public: agents call it before they have a session, and agent keys are not JWTs. It checks callers itself.
 verify_jwt = false
 # Deploys bundle only code; agent.md is read at runtime.
 static_files = ["./functions/vantage/agent.md"]
+
+[functions.watchlist]
+# Signed in only: the gateway turns away calls without a JWT before the function runs.
+verify_jwt = true
 
 [edge_runtime]
 enabled = true

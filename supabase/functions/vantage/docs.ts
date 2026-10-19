@@ -1,6 +1,8 @@
 import { MIN_PASSWORD_LENGTH } from "../../../shared/api.ts";
 
 export type Endpoints = {
+  /** Where the project's functions live. */
+  functions: string;
   /** This function. */
   base: string;
   /** Project URL. */
@@ -14,8 +16,8 @@ export type Endpoints = {
 export const endpoints = (e: Endpoints) => ({
   onboard: `${e.base}/onboard`,
   token: `${e.base}/token`,
-  prices: `${e.base}?range=1d`,
-  lookup: `${e.base}?lookup=CRWD`,
+  prices: `${e.functions}/watchlist?range=1d`,
+  lookup: `${e.functions}/watchlist?lookup=CRWD`,
   tokenRefresh: `${e.supabase}/auth/v1/token?grant_type=refresh_token`,
   rest: `${e.supabase}/rest/v1`,
   restOpenapi: `${e.base}/rest-openapi.json`,
@@ -94,8 +96,7 @@ export function openapi(e: Endpoints) {
     paths: {
       "/": {
         get: {
-          summary:
-            "Prices for the caller's watchlist, or for named symbols when signed out (rate-limited), or a symbol lookup",
+          summary: "Prices for named symbols, without a session (rate-limited)",
           parameters: [
             {
               name: "range",
@@ -105,23 +106,41 @@ export function openapi(e: Endpoints) {
             {
               name: "symbols",
               in: "query",
+              required: true,
               schema: { type: "string" },
-              description: "Signed out: comma-separated Yahoo symbols to price, at most 25",
+              description: "Comma-separated Yahoo symbols, at most 25",
+            },
+          ],
+          responses: {
+            "200": { description: "One price series per symbol" },
+            "400": { description: "No valid symbols" },
+            "429": { description: "Too many requests from this address" },
+          },
+        },
+      },
+      "/watchlist": {
+        servers: [{ url: e.functions }],
+        get: {
+          summary: "Prices for the user's watchlist, or a symbol lookup",
+          parameters: [
+            {
+              name: "range",
+              in: "query",
+              schema: { type: "string", enum: ["1d", "24h", "1w", "history"] },
             },
             {
               name: "lookup",
               in: "query",
               schema: { type: "string" },
-              description: "Ticker or company name to resolve to Yahoo symbols (needs a session)",
+              description: "Ticker or company name to resolve to Yahoo symbols",
             },
           ],
-          security: [{}, { session: [] }],
+          security: [{ session: [] }],
           responses: {
             "200": {
               description: "Groups, items and one price series per item; or lookup results",
             },
-            "400": { description: "Signed out without valid symbols" },
-            "429": { description: "Too many requests while signed out" },
+            "401": { description: "No session" },
           },
         },
       },

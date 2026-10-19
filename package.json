@@ -18,7 +18,7 @@
     "supabase:deploy": "supabase db push && supabase functions deploy --use-api",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p app && deno check supabase/functions/vantage/index.ts",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p app && deno check supabase/functions/vantage/index.ts supabase/functions/watchlist/index.ts",
     "test": "node --test \"tests/**/*.test.ts\"",
     "e2e": "playwright test"
   },

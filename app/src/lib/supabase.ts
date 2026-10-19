@@ -49,7 +49,7 @@ export function useSession(): SessionState {
 /** Yahoo symbol search. */
 export async function lookupSymbols(query: string, accessToken: string): Promise<SymbolMatch[]> {
   const response = await fetch(
-    `${SUPABASE_URL}/functions/v1/vantage?lookup=${encodeURIComponent(query)}`,
+    `${SUPABASE_URL}/functions/v1/watchlist?lookup=${encodeURIComponent(query)}`,
     {
       headers: { apikey: SUPABASE_KEY ?? "", Authorization: `Bearer ${accessToken}` },
       signal: AbortSignal.timeout(20_000),

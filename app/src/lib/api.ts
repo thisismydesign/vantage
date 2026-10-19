@@ -13,13 +13,16 @@ export const asHistory = (s: IntradaySeries | VantageHistory | undefined) =>
   s && "ranges" in s ? s : undefined;
 
 export const API_BASE = `${SUPABASE_URL}/functions/v1/vantage`;
+const WATCHLIST = `${SUPABASE_URL}/functions/v1/watchlist`;
 
 class RateLimited extends Error {}
 
-/** Signed out, the demo watchlist's symbols. */
+/** Signed in, the user's watchlist; signed out, the demo watchlist's symbols from the public function. */
 async function fetchCharts(range: ChartRange, accessToken?: string): Promise<ChartsResponse> {
-  const symbols = accessToken ? "" : `&symbols=${encodeURIComponent(DEMO_SYMBOLS.join(","))}`;
-  const response = await fetch(`${API_BASE}?range=${range}${symbols}`, {
+  const url = accessToken
+    ? `${WATCHLIST}?range=${range}`
+    : `${API_BASE}?range=${range}&symbols=${encodeURIComponent(DEMO_SYMBOLS.join(","))}`;
+  const response = await fetch(url, {
     headers: {
       ...(SUPABASE_KEY ? { apikey: SUPABASE_KEY } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),

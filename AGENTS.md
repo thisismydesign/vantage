@@ -13,7 +13,7 @@ Portfolio manager.
 ```
 app/                     web app; app/wrangler.jsonc deploys app/dist
 shared/                  the app–backend contract; see docs/technical.md
-supabase/functions/      vantage (API, onboarding), _shared helpers between functions
+supabase/functions/      vantage (public API, onboarding), watchlist (signed-in prices, lookup), _shared
 supabase/migrations/     schema, policies, grants
 supabase/seed/           local data: the template, and the dev account (from app/src/lib/demo)
 lint/                    custom ESLint rules; each file is on as an error

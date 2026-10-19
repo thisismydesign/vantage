@@ -17,7 +17,6 @@
     "tests/**/*.ts",
     "e2e/**/*.ts",
     "playwright.config.ts",
-    "supabase/functions/_shared/**/*.ts",
     "supabase/seed/**/*.ts"
   ]
 }
