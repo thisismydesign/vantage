@@ -92,7 +92,8 @@ export function openapi(e: Endpoints) {
     paths: {
       "/": {
         get: {
-          summary: "Prices for the caller's watchlist or the demo list, or a symbol lookup",
+          summary:
+            "Prices for the caller's watchlist, or for named symbols when signed out (rate-limited), or a symbol lookup",
           parameters: [
             {
               name: "range",
@@ -100,24 +101,25 @@ export function openapi(e: Endpoints) {
               schema: { type: "string", enum: ["1d", "24h", "1w", "history"] },
             },
             {
-              name: "demo",
+              name: "symbols",
               in: "query",
-              schema: { type: "boolean" },
-              description: "Prices for the demo list signed-out visitors see; needs no session",
+              schema: { type: "string" },
+              description: "Signed out: comma-separated Yahoo symbols to price, at most 25",
             },
             {
               name: "lookup",
               in: "query",
               schema: { type: "string" },
-              description: "Ticker or company name to resolve to Yahoo symbols",
+              description: "Ticker or company name to resolve to Yahoo symbols (needs a session)",
             },
           ],
-          security: [{ session: [] }, {}],
+          security: [{}, { session: [] }],
           responses: {
             "200": {
               description: "Groups, items and one price series per item; or lookup results",
             },
-            "401": { description: "No session, and not the demo list" },
+            "400": { description: "Signed out without valid symbols" },
+            "429": { description: "Too many requests while signed out" },
           },
         },
       },

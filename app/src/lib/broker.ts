@@ -12,7 +12,7 @@ import type {
 import { buildNames } from "./trades/names.ts";
 import { buildRoundTrips } from "./trades/roundtrips.ts";
 import type { ChartItem, ChartTheme } from "./api.ts";
-import { demoBroker } from "./demo.ts";
+import { demoBroker } from "./demo/index.ts";
 import { supabase, type SessionState } from "./supabase.ts";
 
 export type PositionRow = {

@@ -1,7 +1,7 @@
 // Gives the account `pnpm run dev` signs in as the demo data, as rows; replaces it if it exists. `pnpm run db:reset` runs it after the reset.
 
 import { createClient } from "@supabase/supabase-js";
-import { demoRows } from "../functions/_shared/demo.ts";
+import { demoRows } from "../../app/src/lib/demo/data.ts";
 
 process.loadEnvFile(new URL("../../.env.development", import.meta.url));
 const { SUPABASE_URL, SUPABASE_SECRET_KEY, VANTAGE_DEV_EMAIL } = process.env;

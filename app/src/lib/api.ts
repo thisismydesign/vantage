@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { IntradaySeries, VantageHistory } from "@shared/types.ts";
+import { DEMO_SYMBOLS, withDemoList } from "./demo/index.ts";
 import type { SessionState } from "./supabase.ts";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -35,17 +36,22 @@ export const asHistory = (s: IntradaySeries | VantageHistory | undefined) =>
 
 export const API_BASE = `${SUPABASE_URL}/functions/v1/vantage`;
 
-/** Signed out, the demo list. */
+class RateLimited extends Error {}
+
+/** Signed out, the demo watchlist's symbols. */
 async function fetchCharts(range: ChartRange, accessToken?: string): Promise<ChartsResponse> {
-  const response = await fetch(`${API_BASE}?range=${range}${accessToken ? "" : "&demo"}`, {
+  const symbols = accessToken ? "" : `&symbols=${encodeURIComponent(DEMO_SYMBOLS.join(","))}`;
+  const response = await fetch(`${API_BASE}?range=${range}${symbols}`, {
     headers: {
       ...(SUPABASE_KEY ? { apikey: SUPABASE_KEY } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
     signal: AbortSignal.timeout(60_000),
   });
+  if (response.status === 429) throw new RateLimited();
   if (!response.ok) throw new Error(`Charts API responded ${response.status}`);
-  return (await response.json()) as ChartsResponse;
+  const body = (await response.json()) as ChartsResponse;
+  return accessToken ? body : withDemoList(body);
 }
 
 /** `owner` is the user id, or "demo" signed out. */
@@ -74,6 +80,8 @@ export type ChartData = {
   /** Whose data `data` is. */
   owner?: string;
   status: "loading" | "ok" | "failed";
+  /** The last failure was the signed-out rate limit. */
+  limited?: boolean;
   updating: boolean;
 };
 
@@ -108,8 +116,14 @@ export function useChartData(
         writeCache(owner, range, data);
         setState({ data, owner, status: "ok", updating: false });
       })
-      .catch(() => {
-        if (!disposed) setState((previous) => ({ ...previous, status: "failed", updating: false }));
+      .catch((e) => {
+        if (!disposed)
+          setState((previous) => ({
+            ...previous,
+            status: "failed",
+            limited: e instanceof RateLimited,
+            updating: false,
+          }));
       });
     return () => {
       disposed = true;

@@ -1,7 +1,16 @@
 import { expect, test } from "@playwright/test";
-import { ANON_KEY, SUPABASE_URL, TEST_EMAIL, canSignIn, signIn } from "./session.ts";
+import {
+  ANON_KEY,
+  SUPABASE_URL,
+  TEST_EMAIL,
+  canSignIn,
+  resetSignedOutThrottle,
+  signIn,
+} from "./session.ts";
 
 const API = `${SUPABASE_URL}/functions/v1/vantage`;
+
+test.beforeAll(resetSignedOutThrottle);
 
 test("shows the demo watchlist with charts", async ({ page }) => {
   await page.goto("/");
@@ -29,10 +38,13 @@ test("serves the agent instructions, the API description and prices", async ({ r
   const openapi = await request.get(`${API}/openapi.json`, { headers });
   expect(openapi.ok()).toBe(true);
   expect((await openapi.json()).openapi).toBeTruthy();
-  const prices = await request.get(`${API}?range=1d&demo`, { headers, timeout: 60_000 });
+  const prices = await request.get(`${API}?range=1d&symbols=NVDA,BTC-USD`, {
+    headers,
+    timeout: 60_000,
+  });
   expect(prices.ok()).toBe(true);
-  expect((await prices.json()).items.length).toBeGreaterThan(0);
-  expect((await request.get(`${API}?range=1d`, { headers })).status()).toBe(401);
+  expect(Object.keys((await prices.json()).series)).toEqual(["NVDA", "BTC-USD"]);
+  expect((await request.get(`${API}?range=1d`, { headers })).status()).toBe(400);
 });
 
 test("shows demo data on every page while signed out", async ({ page }) => {

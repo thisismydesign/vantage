@@ -6,7 +6,6 @@ import { BASES, convert, convertSeries, type RateBook, type RateSeries } from ".
 import { buildRanges, HISTORY_RANGES, RANGE_SOURCE, thin } from "../_shared/history.ts";
 import type { HistoryRange, RangeSeries } from "../../../shared/types.ts";
 import { KEY_PREFIX, sha256Hex } from "../_shared/keys.ts";
-import { demoList } from "../_shared/demo.ts";
 import { resolveCaller, type Caller } from "./auth.ts";
 import { agentInstructions, endpoints, openapi, type Endpoints } from "./docs.ts";
 import {
@@ -576,6 +575,25 @@ const text = (body: string, type: string) =>
     headers: { ...CORS, "Content-Type": type, "Cache-Control": "no-store" },
   });
 
+// Signed out, the app never refreshes on its own; a page view costs one to three requests.
+const SIGNED_OUT_LIMIT = { perHour: 60, symbols: 25 };
+const SYMBOL = /^[A-Za-z0-9.^=-]{1,20}$/;
+
+/** A bare list for symbols a signed-out caller names; each prices under its own symbol. */
+const symbolList = (symbols: string[]) => ({
+  themes: [],
+  items: symbols.map((symbol, position) => ({
+    ticker: symbol,
+    name: symbol,
+    quote_symbol: symbol,
+    currency: null,
+    themes: [],
+    aliases: [],
+    disabled: false,
+    position,
+  })),
+});
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { headers: CORS });
   const url = new URL(request.url);
@@ -613,10 +631,20 @@ Deno.serve(async (request) => {
         : json({ error: "Sign in first." }, 401);
     const range = url.searchParams.get("range") ?? "1d";
     if (!(range in TTL_MS)) return json({ error: "Unsupported range." }, 400);
-    // The demo list is fixed, so anonymous callers only ever reach symbols the cache already bounds.
-    if (url.searchParams.has("demo")) return json(await prices(range as Range, demoList()));
-    if (!owner) return json({ error: "Sign in first." }, 401);
-    return json(await prices(range as Range, await loadList(db, owner)));
+    if (owner) return json(await prices(range as Range, await loadList(db, owner)));
+    // Signed out, only the symbols asked for: a few, well-formed, and rate-limited per address.
+    const symbols = [
+      ...new Set((url.searchParams.get("symbols") ?? "").split(",").filter(Boolean)),
+    ];
+    if (
+      !symbols.length ||
+      symbols.length > SIGNED_OUT_LIMIT.symbols ||
+      !symbols.every((s) => SYMBOL.test(s))
+    )
+      return json({ error: `Sign in, or name up to ${SIGNED_OUT_LIMIT.symbols} symbols.` }, 400);
+    if (await throttled(clientIp(request), "signed-out", SIGNED_OUT_LIMIT.perHour))
+      return json({ error: "Too many requests from this address. Try again later." }, 429);
+    return json(await prices(range as Range, symbolList(symbols)));
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }

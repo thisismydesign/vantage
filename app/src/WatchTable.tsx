@@ -4,7 +4,7 @@ import type { BaseCurrency, HistoryRange } from "@shared/types.ts";
 import type { Display } from "./Charts.tsx";
 import { asHistory, asSession, type ChartItem, type ChartsResponse } from "./lib/api.ts";
 import { resolver, type PositionRow } from "./lib/broker.ts";
-import { demoBroker } from "./lib/demo.ts";
+import { demoBroker } from "./lib/demo/index.ts";
 import { money, signedPct } from "./lib/format.ts";
 import { supabase, useSession } from "./lib/supabase.ts";
 import { TONE } from "./theme.ts";

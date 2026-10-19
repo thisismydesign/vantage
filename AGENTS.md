@@ -15,7 +15,7 @@ app/                     web app; app/wrangler.jsonc deploys app/dist
 shared/types.ts          shapes shared by app and functions
 supabase/functions/      vantage (API, onboarding), _shared helpers
 supabase/migrations/     schema, policies, grants
-supabase/seed/           local data: the template, and the dev account (from _shared/demo.ts)
+supabase/seed/           local data: the template, and the dev account (from app/src/lib/demo)
 lint/                    custom ESLint rules
 tests/                   node:test unit specs
 ```

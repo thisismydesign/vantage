@@ -35,6 +35,15 @@ export async function testSession(): Promise<Session> {
   return otp.data.session;
 }
 
+/** Local runs all come from one address; clear its signed-out price budget so repeated runs stay inside the rate limit. */
+export async function resetSignedOutThrottle() {
+  if (process.env.E2E_BASE_URL || !canSignIn) return;
+  const admin: Admin = createClient(SUPABASE_URL!, SECRET_KEY!, {
+    auth: { persistSession: false },
+  });
+  await admin.from("throttle").delete().eq("route", "signed-out");
+}
+
 async function seedTemplateIfEmpty(admin: Admin, owner: string) {
   const { count } = await admin
     .from("watchlist")

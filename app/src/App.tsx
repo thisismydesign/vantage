@@ -41,14 +41,18 @@ export function useHashPage(): [Page, (p: Page) => void] {
 const baseOf = (currency: string | null | undefined): BaseCurrency =>
   currency === "USD" ? "USD" : "EUR";
 
+const LIMITED = "Too many requests from this address. Try again in a few minutes, or sign in.";
+
 function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
   const session = useSession();
   const broker = useBrokerData(session);
   const [cycle, setCycle] = useState(() => Date.now());
+  // Signed out, prices refresh only on demand, which keeps visitors well inside the rate limit.
   useEffect(() => {
+    if (!session) return;
     const timer = window.setInterval(() => !document.hidden && setCycle(Date.now()), 60_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [session]);
   const charts = useChartData("1d", cycle, session);
   const live = charts.data?.range === "1d" ? charts.data : undefined;
   const base = baseOf(broker.snapshot?.base_currency);
@@ -65,6 +69,12 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
     [broker.fills, live, base],
   );
 
+  if (broker.snapshot && !live && charts.status === "failed")
+    return (
+      <Alert color={charts.limited ? "yellow" : "red"} title="Prices unavailable">
+        {charts.limited ? LIMITED : "The charts service did not respond. Reload to retry."}
+      </Alert>
+    );
   if ((broker.loading && !broker.snapshot) || (broker.snapshot && !live))
     return (
       <Group gap="sm">
@@ -74,6 +84,13 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
         </Text>
       </Group>
     );
+  const stale = charts.status === "failed" && (
+    <Alert color="yellow" py="xs" mb="md">
+      <Text size="sm">
+        {charts.limited ? LIMITED : "Refreshing prices failed."} Showing the last prices.
+      </Text>
+    </Alert>
+  );
   if (page === "portfolio") {
     if (!built)
       return (
@@ -82,12 +99,15 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
         </Alert>
       );
     return (
-      <PortfolioPage
-        built={built}
-        history={broker.history}
-        items={live!.items}
-        themes={live!.themes}
-      />
+      <>
+        {stale}
+        <PortfolioPage
+          built={built}
+          history={broker.history}
+          items={live!.items}
+          themes={live!.themes}
+        />
+      </>
     );
   }
   if (!trades)
@@ -96,7 +116,12 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
         Your agent sends your fills through the API; they show here.
       </Alert>
     );
-  return <TradesPage trades={trades} pricing={pricing} nav={broker.snapshot?.nav ?? null} />;
+  return (
+    <>
+      {stale}
+      <TradesPage trades={trades} pricing={pricing} nav={broker.snapshot?.nav ?? null} />
+    </>
+  );
 }
 
 function PageContent({ page }: { page: Page }) {

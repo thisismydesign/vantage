@@ -641,6 +641,9 @@ function Setting({ label, children }: { label: string; children: ReactNode }) {
 /** `header` is for hosts without the standalone app shell. */
 export function Charts({ header = true }: { header?: boolean }) {
   const [liveUpdates, setLiveUpdates] = useLocalState("charts:liveUpdates", true);
+  const session = useSession();
+  // Signed out, prices refresh only on demand, which keeps visitors well inside the rate limit.
+  const autoRefresh = liveUpdates && Boolean(session);
   const [view, setView] = useLocalState<"compact" | "detailed" | "list">("charts:view", "compact");
   const compact = view === "compact";
   const list = view === "list";
@@ -656,7 +659,7 @@ export function Charts({ header = true }: { header?: boolean }) {
   // One state change per minute; the per-second countdown lives in RefreshRing.
   const [cycle, setCycle] = useState(() => Date.now());
   useEffect(() => {
-    if (!liveUpdates || !isIntraday) return;
+    if (!autoRefresh || !isIntraday) return;
     const due = () => Date.now() - cycle >= REFRESH_MS;
     const timer = window.setTimeout(() => {
       if (!document.hidden) setCycle(Date.now());
@@ -669,7 +672,7 @@ export function Charts({ header = true }: { header?: boolean }) {
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [liveUpdates, isIntraday, cycle]);
+  }, [autoRefresh, isIntraday, cycle]);
   const refresh = useCallback(() => setCycle(Date.now()), []);
   // History is cached for hours upstream, so the list refetches it only when the watchlist changes.
   const [historyCycle, setHistoryCycle] = useState(() => Date.now());
@@ -684,8 +687,7 @@ export function Charts({ header = true }: { header?: boolean }) {
 
   const activeRange = RANGES.find((r) => r.value === range) ?? RANGES[0];
   const apiRange: ChartRange = list ? "1d" : isIntraday ? (range as ChartRange) : "history";
-  const session = useSession();
-  const { data, status, updating } = useChartData(apiRange, cycle, session);
+  const { data, status, limited, updating } = useChartData(apiRange, cycle, session);
   const week = useChartData(list ? "1w" : null, cycle, session);
   const history = useChartData(list ? "history" : null, historyCycle, session);
   // A cached response for another range must not render under this one.
@@ -837,7 +839,9 @@ export function Charts({ header = true }: { header?: boolean }) {
             <Switch
               size="sm"
               label="Live price updates"
-              checked={liveUpdates}
+              description={session ? undefined : "Sign in to turn on"}
+              disabled={!session}
+              checked={autoRefresh}
               onChange={(event) => setLiveUpdates(event.currentTarget.checked)}
             />
           )}
@@ -857,7 +861,7 @@ export function Charts({ header = true }: { header?: boolean }) {
   const refreshRing = isIntraday ? (
     <RefreshRing
       cycle={cycle}
-      live={liveUpdates}
+      live={autoRefresh}
       failed={status === "failed" || failedTickers.length > 0}
       onRefresh={refresh}
       updating={updating}
@@ -871,7 +875,7 @@ export function Charts({ header = true }: { header?: boolean }) {
       {status === "failed" && (
         <Text span c={TONE.warning}>
           {" "}
-          · refresh failed, showing last data
+          · {limited ? "too many refreshes, try again later" : "refresh failed"}, showing last data
         </Text>
       )}
       {failedTickers.length > 0 && (
@@ -937,8 +941,10 @@ export function Charts({ header = true }: { header?: boolean }) {
       )}
 
       {!live && status === "failed" && (
-        <Alert color="red" title="Prices unavailable">
-          The charts service did not respond. Click the refresh ring to retry.
+        <Alert color={limited ? "yellow" : "red"} title="Prices unavailable">
+          {limited
+            ? "Too many requests from this address. Try again in a few minutes, or sign in."
+            : "The charts service did not respond. Click the refresh ring to retry."}
         </Alert>
       )}
       {!live && status !== "failed" && (

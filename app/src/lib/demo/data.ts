@@ -1,9 +1,9 @@
 // The demo account: what signed-out visitors see, and what supabase/seed/dev-account.ts gives the account `pnpm run dev` signs in as.
 // A dummy book of about $50k in USD, worked out once from real daily closes, so its fills, holdings and account value agree.
 // Its latest statement is always the last Friday before today and every broker date counts days from it, so trades keep their weekdays; calendar and news count from today.
+// Relative imports only: the seed script runs this under Node.
 
-import type { EventCategory } from "./events.ts";
-import type { Sentiment } from "./news.ts";
+import type { EventCategory, Sentiment } from "../../../../shared/types.ts";
 
 export const DEMO_ACCOUNT = "U1234567";
 export const DEMO_BASE_CURRENCY = "USD";
