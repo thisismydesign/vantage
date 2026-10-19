@@ -12,6 +12,9 @@ import {
   type HistoryRange,
   type IntradaySeries,
   type LookupResponse,
+  MIN_PASSWORD_LENGTH,
+  type OnboardRequest,
+  type OnboardResponse,
   type RangeSeries,
   type SymbolMatch,
   type VantageHistory,
@@ -20,15 +23,7 @@ import { KEY_PREFIX, sha256Hex } from "../../../shared/keys.ts";
 import { HISTORY_RANGES, RANGE_SOURCE } from "../../../shared/ranges.ts";
 import { resolveCaller, type Caller } from "./auth.ts";
 import { agentInstructions, endpoints, openapi, type Endpoints } from "./docs.ts";
-import {
-  addGroup,
-  addItem,
-  loadList,
-  publicList,
-  seedDefaults,
-  type GroupInput,
-  type ItemInput,
-} from "./watchlist.ts";
+import { addGroup, addItem, loadList, publicList, seedDefaults } from "./watchlist.ts";
 
 const TTL_MS: Record<ChartRange, number> = {
   "1d": 60_000,
@@ -443,30 +438,36 @@ async function exchangeAgentKey(request: Request, api: Endpoints, ip: string) {
   return json({ session, api: endpoints(api) });
 }
 
-type OnboardBody = {
-  email?: string;
-  defaults?: boolean;
-  groups?: GroupInput[];
-  items?: ItemInput[];
-};
+const generatedPassword = () =>
+  btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(18))))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
 
 // A few accounts an hour per address suffices for a person and their agent, and starves anyone flooding the user table.
 const ONBOARD_LIMIT = { perHour: 5 };
 
 // New accounts only: an existing email never yields a session to an anonymous caller.
-async function onboard(body: OnboardBody, api: Endpoints, ip: string) {
+async function onboard(body: Partial<OnboardRequest>, api: Endpoints, ip: string) {
   const email = body.email?.trim().toLowerCase();
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
     return json({ error: "A valid email is required." }, 400);
+  const chosen = body.password;
+  if (chosen !== undefined && (typeof chosen !== "string" || chosen.length < MIN_PASSWORD_LENGTH))
+    return json({ error: `The password needs at least ${MIN_PASSWORD_LENGTH} characters.` }, 400);
   if (await throttled(ip, "onboard", ONBOARD_LIMIT.perHour))
     return json({ error: "Too many sign-ups from this address. Try again in an hour." }, 429);
-  const { data: created, error } = await db.auth.admin.createUser({ email, email_confirm: true });
+  const password = chosen ?? generatedPassword();
+  const { data: created, error } = await db.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
   if (error || !created.user) {
     const taken = /already|exists|registered/i.test(error?.message ?? "");
     return json(
       {
         error: taken
-          ? "This email already has an account. Sign in on the site instead."
+          ? "This email already has an account. Sign in instead."
           : (error?.message ?? "Could not create the account."),
       },
       taken ? 409 : 500,
@@ -492,22 +493,15 @@ async function onboard(body: OnboardBody, api: Endpoints, ip: string) {
     }
   }
 
-  const session = await mintSession(email);
-
-  const signInEmail = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
-    method: "POST",
-    headers: { apikey: ANON_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ email, create_user: false, options: { email_redirect_to: api.site } }),
-  });
   return json(
     {
       email,
-      session,
-      signInEmailSent: signInEmail.ok,
+      ...(chosen ? {} : { password }),
+      session: await mintSession(email),
       warnings,
       list: publicList(await loadList(db, owner)),
       api: endpoints(api),
-    },
+    } satisfies OnboardResponse,
     201,
   );
 }
@@ -632,7 +626,7 @@ Deno.serve(async (request) => {
     if (route === "/openapi.json" && method === "GET") return json(openapi(api));
     if (route === "/rest-openapi.json" && method === "GET") return json(await restOpenapi(api));
     if (route === "/onboard" && method === "POST") {
-      const body = ((await request.json().catch(() => ({}))) ?? {}) as OnboardBody;
+      const body = ((await request.json().catch(() => ({}))) ?? {}) as Partial<OnboardRequest>;
       return await onboard(body, api, clientIp(request));
     }
     if (route === "/token" && method === "POST")

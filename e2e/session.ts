@@ -35,13 +35,19 @@ export async function testSession(): Promise<Session> {
   return otp.data.session;
 }
 
-/** Local runs all come from one address; clear its signed-out price budget so repeated runs stay inside the rate limit. */
-export async function resetSignedOutThrottle() {
+const admin = (): Admin =>
+  createClient(SUPABASE_URL!, SECRET_KEY!, { auth: { persistSession: false } });
+
+/** Local runs all come from one address; clear its budgets so repeated runs stay inside the rate limits. */
+export async function resetThrottle() {
   if (process.env.E2E_BASE_URL || !canSignIn) return;
-  const admin: Admin = createClient(SUPABASE_URL!, SECRET_KEY!, {
-    auth: { persistSession: false },
-  });
-  await admin.from("throttle").delete().eq("route", "signed-out");
+  await admin().from("throttle").delete().in("route", ["signed-out", "onboard"]);
+}
+
+export async function deleteUser(email: string) {
+  const { data } = await admin().auth.admin.listUsers({ perPage: 1000 });
+  const user = data.users.find((u) => u.email === email);
+  if (user) await admin().auth.admin.deleteUser(user.id);
 }
 
 async function seedTemplateIfEmpty(admin: Admin, owner: string) {

@@ -1,3 +1,5 @@
+import { MIN_PASSWORD_LENGTH } from "../../../shared/api.ts";
+
 export type Endpoints = {
   /** This function. */
   base: string;
@@ -125,7 +127,8 @@ export function openapi(e: Endpoints) {
       },
       "/onboard": {
         post: {
-          summary: "Create an account for an email, with the default list or the given one",
+          summary:
+            "Create an account with an email and password, with the default list or the given one",
           requestBody: {
             required: true,
             content: {
@@ -134,6 +137,12 @@ export function openapi(e: Endpoints) {
                   type: "object",
                   properties: {
                     email: { type: "string", format: "email" },
+                    password: {
+                      type: "string",
+                      minLength: MIN_PASSWORD_LENGTH,
+                      description:
+                        "The user's choice. Leave it out and Vantage makes one, returned once in the response.",
+                    },
                     defaults: {
                       type: "boolean",
                       description:
@@ -150,15 +159,19 @@ export function openapi(e: Endpoints) {
           responses: {
             "201": {
               description:
-                "Account created: a session for the agent, and a sign-in email sent to the user",
+                "Account created: a session for the agent. The user signs in on the site with the email and password.",
               content: {
                 "application/json": {
                   schema: {
                     type: "object",
                     properties: {
                       email: { type: "string" },
+                      password: {
+                        type: "string",
+                        description:
+                          "Only when Vantage made it. Give it to the user; it is not shown again.",
+                      },
                       session: session,
-                      signInEmailSent: { type: "boolean" },
                       warnings: { type: "array", items: { type: "string" } },
                       api: { type: "object", description: "Every endpoint the agent needs" },
                     },
@@ -166,6 +179,7 @@ export function openapi(e: Endpoints) {
                 },
               },
             },
+            "400": { description: "No valid email, or a password that is too short" },
             "409": {
               description:
                 "The email already has an account: the user signs in on the site and can make an agent key there",

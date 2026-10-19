@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadEnv, type Plugin } from "vite";
 
-// Lets local work skip the magic link. A Vite plugin because only the Vite process reads the server key from .env.development.
+// Lets local work skip typing a password. A Vite plugin because only the Vite process reads the server key from .env.development.
 export function devSession(envDir: string): Plugin {
   return {
     name: "vantage-dev-session",

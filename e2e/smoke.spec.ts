@@ -1,23 +1,17 @@
 import { expect, test } from "@playwright/test";
-import {
-  ANON_KEY,
-  SUPABASE_URL,
-  TEST_EMAIL,
-  canSignIn,
-  resetSignedOutThrottle,
-  signIn,
-} from "./session.ts";
+import { ANON_KEY, SUPABASE_URL, TEST_EMAIL, canSignIn, resetThrottle, signIn } from "./session.ts";
 
 const API = `${SUPABASE_URL}/functions/v1/vantage`;
 
-test.beforeAll(resetSignedOutThrottle);
+test.beforeAll(resetThrottle);
 
 test("shows the demo watchlist with charts", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("Vantage").first()).toBeVisible();
   await expect(page.getByText("You are looking at a demo account.")).toBeVisible();
   await page.getByRole("button", { name: "Sign up to customize." }).click();
-  await expect(page.getByText("Onboard via agent")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create account" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy agent instructions" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^(Collapse|Expand) / }).first()).toBeVisible();
   await expect(page.locator("svg.recharts-surface").first()).toBeVisible({ timeout: 60_000 });
 });

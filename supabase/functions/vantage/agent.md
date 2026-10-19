@@ -13,7 +13,7 @@ You keep it up to date for the user: change the watchlist when they ask, record 
 
 - If the user gave you an agent key (they make them under Agent keys in their profile menu), exchange it for a session.
 - If you stored a refresh token earlier, refresh the session.
-- Otherwise, onboard them: ask for their email and whether they want Vantage's default companies or their own list, then create the account. Store the refresh token durably, tell the user where, and tell them to open the sign-in email Vantage sends.
+- Otherwise, onboard them: ask for their email, whether they want to choose a password or have Vantage make one, and whether they want Vantage's default companies or their own list, then create the account. Store the refresh token durably and tell the user where. Give the user their email and password for signing in on the site; there is no reset by email, so they should keep it in a password manager, and can change it under Settings → Password.
 
 ## API
 

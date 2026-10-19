@@ -7,6 +7,7 @@ import {
   Menu,
   Modal,
   MultiSelect,
+  PasswordInput,
   Popover,
   SegmentedControl,
   Select,
@@ -19,9 +20,14 @@ import {
 import { IconUser, IconUserCheck } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { AgentKeys } from "./AgentKeys.tsx";
-import type { ChartItem, ChartTheme, SymbolMatch } from "@shared/api.ts";
+import {
+  MIN_PASSWORD_LENGTH,
+  type ChartItem,
+  type ChartTheme,
+  type SymbolMatch,
+} from "@shared/api.ts";
 import { API_BASE } from "./lib/api.ts";
-import { lookupSymbols, signInAsDevAccount, supabase, useSession } from "./lib/supabase.ts";
+import { lookupSymbols, signInAsDevAccount, signUp, supabase, useSession } from "./lib/supabase.ts";
 
 /** Fired on `window` after any watchlist edit, so open charts refetch. */
 export const WATCHLIST_CHANGED = "vantage:watchlist-changed";
@@ -39,6 +45,9 @@ function AgentOnboarding() {
   const [copied, setCopied] = useState(false);
   return (
     <Stack gap="xs">
+      <Text size="xs" c="dimmed">
+        Or have your agent set it up:
+      </Text>
       <Textarea
         value={ONBOARD_PROMPT}
         readOnly
@@ -48,40 +57,46 @@ function AgentOnboarding() {
       />
       <Button
         size="xs"
+        variant="light"
         onClick={() => {
           void navigator.clipboard.writeText(ONBOARD_PROMPT);
           setCopied(true);
         }}
       >
-        {copied ? "Copied" : "Copy instructions"}
+        {copied ? "Copied" : "Copy agent instructions"}
       </Button>
     </Stack>
   );
 }
 
-function EmailSignIn() {
+type AuthMode = "signin" | "signup";
+
+function PasswordForm({ mode }: { mode: AuthMode }) {
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string>();
-  const send = async () => {
+  const [busy, setBusy] = useState(false);
+  const signup = mode === "signup";
+  const submit = async () => {
     setError(undefined);
-    const { error } = await supabase!.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${location.origin}${location.pathname}`,
-        shouldCreateUser: false,
-      },
-    });
-    if (error) setError(error.message);
-    else setSent(true);
+    setBusy(true);
+    try {
+      if (signup) await signUp(email, password);
+      else {
+        const { error } = await supabase!.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
   };
-  if (sent) return <Text size="sm">Check your email for the sign-in link.</Text>;
   return (
-    // A real form with a named email field is what browsers key autofill on.
+    // A real form with named fields is what browsers and password managers key autofill on.
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        void send();
+        void submit();
       }}
     >
       <Stack gap="xs">
@@ -95,35 +110,101 @@ function EmailSignIn() {
           value={email}
           onChange={(e) => setEmail(e.currentTarget.value)}
         />
+        <PasswordInput
+          size="xs"
+          label="Password"
+          name="password"
+          autoComplete={signup ? "new-password" : "current-password"}
+          description={
+            signup
+              ? `At least ${MIN_PASSWORD_LENGTH} characters. There is no reset by email, so keep it in a password manager.`
+              : undefined
+          }
+          value={password}
+          onChange={(e) => setPassword(e.currentTarget.value)}
+        />
         {error && (
           <Text size="xs" c="red">
             {error}
           </Text>
         )}
-        <Button size="xs" type="submit" disabled={!email}>
-          Send magic link
+        <Button
+          size="xs"
+          type="submit"
+          loading={busy}
+          disabled={!email || password.length < (signup ? MIN_PASSWORD_LENGTH : 1)}
+        >
+          {signup ? "Create account" : "Sign in"}
         </Button>
       </Stack>
     </form>
   );
 }
 
-function SignInForm() {
-  const [mode, setMode] = useState<"signin" | "agent">("agent");
+function AuthForms({ mode, onMode }: { mode: AuthMode; onMode: (mode: AuthMode) => void }) {
   return (
     <Stack gap="sm">
       <SegmentedControl
         size="xs"
         fullWidth
         value={mode}
-        onChange={(v) => setMode(v as "signin" | "agent")}
+        onChange={(v) => onMode(v as AuthMode)}
         data={[
-          { value: "agent", label: "Onboard via agent" },
           { value: "signin", label: "Sign in" },
+          { value: "signup", label: "Sign up" },
         ]}
       />
-      {mode === "signin" ? <EmailSignIn /> : <AgentOnboarding />}
+      <PasswordForm key={mode} mode={mode} />
+      {mode === "signup" && <AgentOnboarding />}
     </Stack>
+  );
+}
+
+function ChangePassword() {
+  const [password, setPassword] = useState("");
+  const [state, setState] = useState<{ busy?: boolean; done?: boolean; error?: string }>({});
+  const save = async () => {
+    setState({ busy: true });
+    const { error } = await supabase!.auth.updateUser({ password });
+    setState(error ? { error: error.message } : { done: true });
+    if (!error) setPassword("");
+  };
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
+    >
+      <Stack gap="xs" maw={320}>
+        <PasswordInput
+          size="xs"
+          label="New password"
+          name="new-password"
+          autoComplete="new-password"
+          description={`At least ${MIN_PASSWORD_LENGTH} characters.`}
+          value={password}
+          onChange={(e) => {
+            setPassword(e.currentTarget.value);
+            setState({});
+          }}
+        />
+        {state.error && (
+          <Text size="xs" c="red">
+            {state.error}
+          </Text>
+        )}
+        {state.done && <Text size="xs">Password changed.</Text>}
+        <Button
+          size="xs"
+          type="submit"
+          loading={state.busy}
+          disabled={password.length < MIN_PASSWORD_LENGTH}
+        >
+          Change password
+        </Button>
+      </Stack>
+    </form>
   );
 }
 
@@ -384,6 +465,7 @@ function Editor({ accessToken }: { accessToken: string }) {
 const SETTINGS = [
   { value: "watchlist", label: "Watchlist" },
   { value: "keys", label: "Agent keys" },
+  { value: "password", label: "Password" },
 ] as const;
 type SettingsTab = (typeof SETTINGS)[number]["value"];
 
@@ -416,6 +498,9 @@ function SettingsModal({
         <Tabs.Panel value="keys">
           <AgentKeys />
         </Tabs.Panel>
+        <Tabs.Panel value="password">
+          <ChangePassword />
+        </Tabs.Panel>
       </Tabs>
     </Modal>
   );
@@ -425,8 +510,13 @@ export function ProfileMenu() {
   const session = useSession();
   const [settings, setSettings] = useState<SettingsTab | null>(null);
   const [signInOpen, setSignInOpen] = useState(false);
+  const [mode, setMode] = useState<AuthMode>("signin");
   useEffect(() => {
-    const open = () => setSignInOpen(true);
+    // The demo banner's call to sign up.
+    const open = () => {
+      setMode("signup");
+      setSignInOpen(true);
+    };
     window.addEventListener(OPEN_SIGN_IN, open);
     return () => window.removeEventListener(OPEN_SIGN_IN, open);
   }, []);
@@ -445,18 +535,18 @@ export function ProfileMenu() {
             variant="subtle"
             aria-label="Sign in"
             size="lg"
-            onClick={() =>
+            onClick={() => {
+              setMode("signin");
               // Locally, the icon signs straight in as the dev account; the banner link still opens the forms.
-              import.meta.env.DEV
-                ? signInAsDevAccount().catch(() => setSignInOpen(true))
-                : setSignInOpen((o) => !o)
-            }
+              if (import.meta.env.DEV) signInAsDevAccount().catch(() => setSignInOpen(true));
+              else setSignInOpen((o) => !o);
+            }}
           >
             <IconUser size={20} />
           </ActionIcon>
         </Popover.Target>
         <Popover.Dropdown>
-          <SignInForm />
+          <AuthForms mode={mode} onMode={setMode} />
         </Popover.Dropdown>
       </Popover>
     );

@@ -5,7 +5,7 @@ Purpose: the stack and the principles every change MUST respect. Intent, not imp
 ## Stack
 
 - App: React + Mantine via Vite, static assets on Cloudflare Workers.
-- Backend: Supabase — Postgres, Auth (magic link), Edge Functions (Deno), Vault.
+- Backend: Supabase — Postgres, Auth (email + password, no emails sent), Edge Functions (Deno), Vault.
 - Data: Yahoo Finance (prices, FX). Broker statements (positions, trades) arrive from the owner's agent.
 
 ## Principles

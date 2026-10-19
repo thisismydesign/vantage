@@ -1,4 +1,4 @@
-// What the vantage function returns to the app.
+// The vantage function's requests and responses.
 
 export type BaseCurrency = "EUR" | "USD";
 export const BASES: BaseCurrency[] = ["EUR", "USD"];
@@ -64,3 +64,43 @@ export type ChartsResponse = {
 /** `GET ?lookup=`: Yahoo symbol search. */
 export type SymbolMatch = { symbol: string; name: string; exchange: string; type: string };
 export type LookupResponse = { results: SymbolMatch[] };
+
+/** No reset by email, so `/onboard` asks for a strong one. */
+export const MIN_PASSWORD_LENGTH = 8;
+
+export type GroupInput = { id?: string; label: string };
+export type ItemInput = {
+  ticker: string;
+  name?: string;
+  symbol?: string;
+  currency?: string;
+  groups?: string[];
+};
+export type ListGroup = { id: string; label: string };
+export type ListItem = {
+  ticker: string;
+  name: string;
+  symbol: string | null;
+  currency: string | null;
+  groups: string[];
+};
+
+export type ApiSession = { access_token: string; refresh_token: string; expires_at?: number };
+
+/** `POST /onboard`: a new account. Without a password, the function makes one. */
+export type OnboardRequest = {
+  email: string;
+  password?: string;
+  defaults?: boolean;
+  groups?: GroupInput[];
+  items?: ItemInput[];
+};
+export type OnboardResponse = {
+  email: string;
+  /** Only when the function made it; the user signs in with it. */
+  password?: string;
+  session: ApiSession;
+  warnings: string[];
+  list: { groups: ListGroup[]; items: ListItem[] };
+  api: Record<string, string>;
+};

@@ -7,9 +7,8 @@ Vantage runs on a Supabase project (database, auth, Edge Function) and a Cloudfl
 1. Create a project, then `supabase link --project-ref <ref>`.
 2. `pnpm run supabase:deploy` applies the migrations and deploys the function.
 3. Set the function's secrets: `supabase secrets set VANTAGE_SITE_URL=<site>`, where `<site>` is the web app's URL (see Cloudflare). If the app uses the legacy anon key, also set `VANTAGE_ANON_KEY` to it.
-4. In Authentication → URL Configuration, set Site URL to `<site>`.
-5. Auth settings SHOULD match `[auth]` in `supabase/config.toml`: sign-ups off (the function creates accounts), email provider on.
-6. Optional: run `supabase/seed/00_template.sql` in the SQL editor for the default watchlist new accounts start from. The other seed files MUST NOT run on a hosted project.
+4. Auth settings SHOULD match `[auth]` in `supabase/config.toml`: sign-ups off (the function creates accounts), email provider on, minimum password length 8. Vantage sends no email.
+5. Optional: run `supabase/seed/00_template.sql` in the SQL editor for the default watchlist new accounts start from. The other seed files MUST NOT run on a hosted project.
 
 ## Cloudflare
 

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import type { GroupInput, ItemInput, ListGroup, ListItem } from "../../../shared/api.ts";
 
 export type ThemeRow = { id: string; label: string; position: number };
 export type WatchRow = {
@@ -10,15 +11,6 @@ export type WatchRow = {
   aliases: string[];
   disabled: boolean;
   position: number;
-};
-
-export type GroupInput = { id?: string; label: string };
-export type ItemInput = {
-  ticker: string;
-  name?: string;
-  symbol?: string;
-  currency?: string;
-  groups?: string[];
 };
 
 export const slug = (label: string) =>
@@ -137,8 +129,8 @@ export async function addItem(db: SupabaseClient, owner: string, item: ItemInput
 }
 
 export const publicList = ({ themes, items }: { themes: ThemeRow[]; items: WatchRow[] }) => ({
-  groups: themes.map((t) => ({ id: t.id, label: t.label })),
-  items: items.map((i) => ({
+  groups: themes.map((t): ListGroup => ({ id: t.id, label: t.label })),
+  items: items.map((i): ListItem => ({
     ticker: i.ticker,
     name: i.name,
     symbol: i.quote_symbol,
