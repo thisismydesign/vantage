@@ -12,11 +12,11 @@ Portfolio manager.
 
 ```
 app/                     web app; app/wrangler.jsonc deploys app/dist
-shared/types.ts          shapes shared by app and functions
-supabase/functions/      vantage (API, onboarding), _shared helpers
+shared/                  the app–backend contract; see docs/technical.md
+supabase/functions/      vantage (API, onboarding), _shared helpers between functions
 supabase/migrations/     schema, policies, grants
 supabase/seed/           local data: the template, and the dev account (from app/src/lib/demo)
-lint/                    custom ESLint rules
+lint/                    custom ESLint rules; each file is on as an error
 tests/                   node:test unit specs
 ```
 
@@ -26,6 +26,7 @@ tests/                   node:test unit specs
 mise install && cp .env.example .env && pnpm install && supabase link
 supabase start && node supabase/seed/dev-account.ts  # local stack (needs Docker) and the dev account
 pnpm run dev                                   # local stack; the account icon signs in as dev@vantage.test
+supabase stop && supabase start                # after a function first imports a shared/ file: the stack mounts them at start
 pnpm run db:reset                              # re-apply migrations and seeds, including the dev account
 pnpm run lint && pnpm run typecheck && pnpm run test
 pnpm run e2e                                   # preview build + browser specs on the local stack
@@ -41,6 +42,5 @@ pnpm run supabase:deploy && pnpm run deploy
 - MUST NOT deploy without instruction.
 - Schema changes MUST be new migration files.
 - User-data tables MUST have `owner` and RLS policies.
-- `_shared` MUST run under Deno and Node.
 - Code MUST explain itself; comments SHOULD NOT be needed. Comments and docs MAY record a reason the code cannot show and MUST NOT explain how it works.
 - All prose — comments, docs, messages — MUST stay terse; prescriptions use RFC 2119.

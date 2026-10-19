@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { KEY_SHOWN, newKey, sha256Hex } from "../supabase/functions/_shared/keys.ts";
+import { KEY_SHOWN, newKey, sha256Hex } from "../shared/keys.ts";
 import { ANON_KEY, SUPABASE_URL, canSignIn, restHeaders, signIn } from "./session.ts";
 
 const REST = `${SUPABASE_URL}/rest/v1`;

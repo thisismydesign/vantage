@@ -1,7 +1,7 @@
 // Dates are local calendar days, never instants.
 
 import { useEffect, useState } from "react";
-import type { CalendarEvent, EventCategory } from "@shared/types.ts";
+import type { CalendarEvent, EventCategory } from "@shared/tables.ts";
 import { demoEvents } from "./demo/index.ts";
 import { supabase, type SessionState } from "./supabase.ts";
 

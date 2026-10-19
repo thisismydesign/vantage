@@ -1,4 +1,4 @@
-import type { IntradaySeries } from "../../../shared/types.ts";
+import type { IntradaySeries } from "../../../shared/api.ts";
 
 export interface Chart {
   meta: {

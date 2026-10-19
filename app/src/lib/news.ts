@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { NewsItem, Sentiment } from "@shared/types.ts";
+import type { NewsItem, Sentiment } from "@shared/tables.ts";
 import { demoNews } from "./demo/index.ts";
 import { supabase, type SessionState } from "./supabase.ts";
 import { TONE } from "../theme.ts";

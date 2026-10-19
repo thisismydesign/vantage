@@ -19,15 +19,9 @@ import {
 import { IconUser, IconUserCheck } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { AgentKeys } from "./AgentKeys.tsx";
-import type { ChartItem, ChartTheme } from "./lib/api.ts";
+import type { ChartItem, ChartTheme, SymbolMatch } from "@shared/api.ts";
 import { API_BASE } from "./lib/api.ts";
-import {
-  lookupSymbols,
-  signInAsDevAccount,
-  supabase,
-  useSession,
-  type SymbolMatch,
-} from "./lib/supabase.ts";
+import { lookupSymbols, signInAsDevAccount, supabase, useSession } from "./lib/supabase.ts";
 
 /** Fired on `window` after any watchlist edit, so open charts refetch. */
 export const WATCHLIST_CHANGED = "vantage:watchlist-changed";

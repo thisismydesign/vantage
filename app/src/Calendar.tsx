@@ -16,8 +16,7 @@ import {
 import { useMediaQuery } from "@mantine/hooks";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useState, type CSSProperties } from "react";
-import type { CalendarEvent } from "@shared/types.ts";
-import { EVENT_CATEGORIES } from "../../supabase/functions/_shared/events.ts";
+import { EVENT_CATEGORIES, type CalendarEvent } from "@shared/tables.ts";
 import { DayHeading } from "./DayHeading.tsx";
 import { API_BASE } from "./lib/api.ts";
 import {

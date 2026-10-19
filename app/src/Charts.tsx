@@ -24,14 +24,16 @@ import {
 import { useMediaQuery } from "@mantine/hooks";
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { IconAdjustmentsHorizontal, IconChevronDown, IconChevronRight } from "@tabler/icons-react";
-import type { BaseCurrency, HistoryRange, IntradaySeries, VantageHistory } from "@shared/types.ts";
-import {
-  closeTime,
-  DAY_MS,
-  RANGE_SOURCE,
-  windowStart,
-  type Bars,
-} from "../../supabase/functions/_shared/history.ts";
+import type {
+  BaseCurrency,
+  ChartItem,
+  ChartRange,
+  ChartTheme,
+  HistoryRange,
+  IntradaySeries,
+  VantageHistory,
+} from "@shared/api.ts";
+import { closeTime, RANGE_SOURCE, windowStart, type Bars } from "@shared/ranges.ts";
 import { displayDateTime, signedPct } from "./lib/format.ts";
 import { useLocalState } from "./lib/useLocalState.ts";
 import { TONE } from "./theme.ts";
@@ -44,21 +46,14 @@ import {
   stepDecimals,
   thin,
 } from "./lib/axis.ts";
-import {
-  asHistory,
-  asSession,
-  CONFIGURED,
-  useChartData,
-  type ChartItem,
-  type ChartRange,
-  type ChartTheme,
-} from "./lib/api.ts";
+import { asHistory, asSession, CONFIGURED, useChartData } from "./lib/api.ts";
 import { VantageBar } from "./Header.tsx";
 import { useSession } from "./lib/supabase.ts";
 import { WATCHLIST_CHANGED } from "./Watchlist.tsx";
 import { listQuotes, useHeld, WatchTable } from "./WatchTable.tsx";
 
 const REFRESH_MS = 60_000;
+const DAY_MS = 86_400_000;
 /** Shared so the search sits over its status. */
 const MIDDLE_WIDTH = 400;
 /** Equal side tracks keep the centre column at the page centre in every row. */

@@ -2,10 +2,22 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { intradayRange, type Chart } from "../_shared/intraday.ts";
-import { BASES, convert, convertSeries, type RateBook, type RateSeries } from "../_shared/fx.ts";
-import { buildRanges, HISTORY_RANGES, RANGE_SOURCE, thin } from "../_shared/history.ts";
-import type { HistoryRange, RangeSeries } from "../../../shared/types.ts";
-import { KEY_PREFIX, sha256Hex } from "../_shared/keys.ts";
+import { convert, convertSeries, type RateBook, type RateSeries } from "../_shared/fx.ts";
+import { buildRanges, thin } from "../_shared/history.ts";
+import {
+  BASES,
+  type BaseCurrency,
+  type ChartRange,
+  type ChartsResponse,
+  type HistoryRange,
+  type IntradaySeries,
+  type LookupResponse,
+  type RangeSeries,
+  type SymbolMatch,
+  type VantageHistory,
+} from "../../../shared/api.ts";
+import { KEY_PREFIX, sha256Hex } from "../../../shared/keys.ts";
+import { HISTORY_RANGES, RANGE_SOURCE } from "../../../shared/ranges.ts";
 import { resolveCaller, type Caller } from "./auth.ts";
 import { agentInstructions, endpoints, openapi, type Endpoints } from "./docs.ts";
 import {
@@ -18,8 +30,12 @@ import {
   type ItemInput,
 } from "./watchlist.ts";
 
-const TTL_MS = { "1d": 60_000, "24h": 60_000, "1w": 60_000, history: 6 * 3_600_000 } as const;
-type Range = keyof typeof TTL_MS;
+const TTL_MS: Record<ChartRange, number> = {
+  "1d": 60_000,
+  "24h": 60_000,
+  "1w": 60_000,
+  history: 6 * 3_600_000,
+};
 const CONCURRENCY = 6;
 const DAY_MS = 86_400_000;
 
@@ -111,7 +127,7 @@ const HOURLY_DAYS = 100;
 const DAILY_DAYS = 400;
 const WEEKLY_DAYS = 5.2 * 365;
 
-async function history(symbol: string) {
+async function history(symbol: string): Promise<VantageHistory> {
   const now = Date.now();
   const attempt = async (fn: () => Promise<[string, number][]>) => {
     try {
@@ -142,7 +158,7 @@ async function history(symbol: string) {
 
 const FX_PREFIX = "fx:";
 const fxCacheKey = (currency: string) => `${FX_PREFIX}${currency}`;
-async function fxRates(currency: string, range: Range) {
+async function fxRates(currency: string, range: ChartRange) {
   // Yahoo quotes `XXX=X` as USD→XXX.
   const symbol = `${currency}=X`;
   const now = Date.now();
@@ -167,28 +183,28 @@ async function fxRates(currency: string, range: Range) {
 }
 type FxData = Awaited<ReturnType<typeof fxRates>>;
 
-function withConversions(data: Record<string, unknown>, fx: Map<string, FxData>, range: Range) {
+type Series = IntradaySeries | VantageHistory;
+
+function withConversions(data: Series, fx: Map<string, FxData>): Series {
   const book = (pick: (d: FxData) => RateSeries | undefined): RateBook =>
     Object.fromEntries([...fx].map(([c, d]) => [c, pick(d) ?? []]));
-  if (range === "history") {
-    const ranges = data.ranges as Record<HistoryRange, RangeSeries>;
-    const native = (data.currency as string | undefined) ?? "USD";
+  if ("ranges" in data) {
+    const native = data.currency ?? "USD";
     return {
       ...data,
       ranges: Object.fromEntries(
         HISTORY_RANGES.map((r) => {
           const weekly = RANGE_SOURCE[r].bars === "weekly";
           const rates = book((d) => (weekly ? d.weekly : d.daily));
-          return [r, { ...ranges[r], converted: convertSeries(ranges[r].points, native, rates) }];
+          const series = data.ranges[r];
+          return [r, { ...series, converted: convertSeries(series.points, native, rates) }];
         }),
-      ),
+      ) as Record<HistoryRange, RangeSeries>,
     };
   }
-  const points = data.points as [string, number][];
-  const native = data.currency as string;
+  const { points, currency: native, previousClose } = data;
   const rates = book((d) => d.intraday);
-  const previousClose = data.previousClose as number | null;
-  const at = (data.previousCloseAt as string | undefined) ?? points[0]?.[0] ?? "";
+  const at = data.previousCloseAt ?? points[0]?.[0] ?? "";
   return {
     ...data,
     converted: convertSeries(points, native, rates),
@@ -197,7 +213,7 @@ function withConversions(data: Record<string, unknown>, fx: Map<string, FxData>,
         base,
         previousClose == null ? null : convert(previousClose, native, base, at, rates),
       ]),
-    ),
+    ) as Record<BaseCurrency, number | null>,
   };
 }
 
@@ -207,7 +223,10 @@ const INTERVAL_MINUTES = { "1d": 5, "24h": 15, "1w": 30 } as const;
 // 1w's five sessions can take two weeks.
 const LOOKBACK_DAYS = { "1d": 5, "24h": 3, "1w": 14 } as const;
 
-async function intraday(symbol: string, range: Exclude<Range, "history">) {
+async function intraday(
+  symbol: string,
+  range: Exclude<ChartRange, "history">,
+): Promise<IntradaySeries> {
   const chart = await yahooChart(symbol, {
     from: Date.now() - LOOKBACK_DAYS[range] * DAY_MS,
     interval: INTERVAL[range],
@@ -238,7 +257,7 @@ async function pool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>)
   return results;
 }
 
-async function searchSymbols(query: string) {
+async function searchSymbols(query: string): Promise<SymbolMatch[]> {
   const url = new URL("https://query2.finance.yahoo.com/v1/finance/search");
   url.searchParams.set("q", query);
   url.searchParams.set("quotesCount", "8");
@@ -268,7 +287,10 @@ async function searchSymbols(query: string) {
     }));
 }
 
-async function prices(range: Range, list: Awaited<ReturnType<typeof loadList>>) {
+async function prices(
+  range: ChartRange,
+  list: Awaited<ReturnType<typeof loadList>>,
+): Promise<ChartsResponse> {
   const { themes, items } = list;
   const symbols = [...new Set(items.map((i) => i.quote_symbol).filter((s): s is string => !!s))];
   const cached = await db.from("chart_cache").select("*").eq("range", range);
@@ -290,15 +312,11 @@ async function prices(range: Range, list: Awaited<ReturnType<typeof loadList>>) 
   const stale = symbols.filter((symbol) => expired(cache.get(symbol)));
 
   const errors: Record<string, string> = {};
-  const fetched = await pool(stale, CONCURRENCY, (symbol): Promise<Record<string, unknown>> =>
-    range === "history"
-      ? history(symbol)
-      : (intraday(symbol, range) as Promise<unknown> as Promise<Record<string, unknown>>),
+  const fetched = await pool(stale, CONCURRENCY, (symbol): Promise<Series> =>
+    range === "history" ? history(symbol) : intraday(symbol, range),
   );
-  const fresh = fetched.flatMap((r) =>
-    r.status === "fulfilled" ? [r.value as Record<string, unknown>] : [],
-  );
-  const currencies = [...new Set([...fresh.map((d) => d.currency as string), ...BASES])].filter(
+  const fresh = fetched.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+  const currencies = [...new Set([...fresh.map((d) => d.currency), ...BASES])].filter(
     (c): c is string => Boolean(c) && c !== "USD",
   );
   const fxStale = currencies.filter((c) => expired(cache.get(fxCacheKey(c))));
@@ -321,7 +339,7 @@ async function prices(range: Range, list: Awaited<ReturnType<typeof loadList>>) 
   fetched.forEach((result, i) => {
     const symbol = stale[i];
     if (result.status === "fulfilled") {
-      const data = withConversions(result.value as Record<string, unknown>, fx, range);
+      const data = withConversions(result.value, fx);
       const row = { symbol, range, fetched_at: new Date(now).toISOString(), data };
       cache.set(symbol, row);
       upserts.push(row);
@@ -332,13 +350,13 @@ async function prices(range: Range, list: Awaited<ReturnType<typeof loadList>>) 
     if (error) console.error("chart_cache upsert failed", error.message);
   }
 
-  const series: Record<string, unknown> = {};
+  const series: ChartsResponse["series"] = {};
   const fetchedAt: Record<string, string> = {};
   const itemErrors: Record<string, string> = {};
   for (const item of items) {
     const hit = item.quote_symbol ? cache.get(item.quote_symbol) : undefined;
     if (hit) {
-      series[item.ticker] = hit.data;
+      series[item.ticker] = hit.data as Series;
       fetchedAt[item.ticker] = hit.fetched_at;
     }
     if (item.quote_symbol && errors[item.quote_symbol])
@@ -627,11 +645,11 @@ Deno.serve(async (request) => {
     const query = url.searchParams.get("lookup");
     if (query)
       return owner
-        ? json({ results: await searchSymbols(query) })
+        ? json({ results: await searchSymbols(query) } satisfies LookupResponse)
         : json({ error: "Sign in first." }, 401);
     const range = url.searchParams.get("range") ?? "1d";
     if (!(range in TTL_MS)) return json({ error: "Unsupported range." }, 400);
-    if (owner) return json(await prices(range as Range, await loadList(db, owner)));
+    if (owner) return json(await prices(range as ChartRange, await loadList(db, owner)));
     // Signed out, only the symbols asked for: a few, well-formed, and rate-limited per address.
     const symbols = [
       ...new Set((url.searchParams.get("symbols") ?? "").split(",").filter(Boolean)),
@@ -644,7 +662,7 @@ Deno.serve(async (request) => {
       return json({ error: `Sign in, or name up to ${SIGNED_OUT_LIMIT.symbols} symbols.` }, 400);
     if (await throttled(clientIp(request), "signed-out", SIGNED_OUT_LIMIT.perHour))
       return json({ error: "Too many requests from this address. Try again later." }, 429);
-    return json(await prices(range as Range, symbolList(symbols)));
+    return json(await prices(range as ChartRange, symbolList(symbols)));
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }

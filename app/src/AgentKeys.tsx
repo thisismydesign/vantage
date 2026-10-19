@@ -10,8 +10,8 @@ import {
   TextInput,
 } from "@mantine/core";
 import { useCallback, useEffect, useState } from "react";
-import type { ApiKey } from "@shared/types.ts";
-import { KEY_SHOWN, newKey, sha256Hex } from "../../supabase/functions/_shared/keys.ts";
+import { KEY_SHOWN, newKey, sha256Hex } from "@shared/keys.ts";
+import type { ApiKey } from "@shared/tables.ts";
 import { displayDateTime } from "./lib/format.ts";
 import { supabase } from "./lib/supabase.ts";
 

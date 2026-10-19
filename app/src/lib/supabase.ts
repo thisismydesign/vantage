@@ -1,5 +1,6 @@
 import { createClient, type Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
+import type { LookupResponse, SymbolMatch } from "@shared/api.ts";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY as string | undefined;
@@ -28,8 +29,6 @@ export function useSession(): SessionState {
   return session;
 }
 
-export type SymbolMatch = { symbol: string; name: string; exchange: string; type: string };
-
 /** Yahoo symbol search. */
 export async function lookupSymbols(query: string, accessToken: string): Promise<SymbolMatch[]> {
   const response = await fetch(
@@ -40,5 +39,5 @@ export async function lookupSymbols(query: string, accessToken: string): Promise
     },
   );
   if (!response.ok) throw new Error(`Lookup failed (${response.status})`);
-  return ((await response.json()) as { results: SymbolMatch[] }).results;
+  return ((await response.json()) as LookupResponse).results;
 }

@@ -12,7 +12,7 @@ import {
   Title,
 } from "@mantine/core";
 import { useMemo } from "react";
-import type { TradeClose, TradeName, TradesFile } from "@shared/types.ts";
+import type { TradeClose, TradeName, TradesFile } from "./lib/types.ts";
 import { Stat } from "./components/Stat.tsx";
 import { displayDate, pct, signedPct } from "./lib/format.ts";
 import { usePrivacy, usePrivateMoney } from "./lib/privacy.tsx";

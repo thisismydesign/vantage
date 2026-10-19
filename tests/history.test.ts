@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { closeTime, cutRange, thin, windowStart } from "../supabase/functions/_shared/history.ts";
+import { closeTime, windowStart } from "../shared/ranges.ts";
+import { cutRange, thin } from "../supabase/functions/_shared/history.ts";
 
 const DAY = 86_400_000;
 const iso = (t: number) => new Date(t).toISOString();

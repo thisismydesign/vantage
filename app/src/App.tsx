@@ -1,6 +1,6 @@
 import { Alert, Anchor, Group, Loader, Text } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
-import type { BaseCurrency } from "@shared/types.ts";
+import type { BaseCurrency } from "@shared/api.ts";
 import { CalendarPage } from "./Calendar.tsx";
 import { Charts } from "./Charts.tsx";
 import { NewsPage } from "./News.tsx";

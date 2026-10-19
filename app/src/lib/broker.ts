@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
 import type {
   BaseCurrency,
+  ChartItem,
+  ChartTheme,
   IntradaySeries,
-  Portfolio,
-  Position,
   VantageHistory,
-  TradeClose,
-  TradeFill,
-  TradesFile,
-} from "@shared/types.ts";
+} from "@shared/api.ts";
 import { buildNames } from "./trades/names.ts";
 import { buildRoundTrips } from "./trades/roundtrips.ts";
-import type { ChartItem, ChartTheme } from "./api.ts";
+import type { Portfolio, Position, TradeClose, TradeFill, TradesFile } from "./types.ts";
 import { demoBroker } from "./demo/index.ts";
 import { supabase, type SessionState } from "./supabase.ts";
 

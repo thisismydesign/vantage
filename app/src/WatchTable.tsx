@@ -1,8 +1,8 @@
 import { Badge, Group, Table, Text, Tooltip } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
-import type { BaseCurrency, HistoryRange } from "@shared/types.ts";
+import type { BaseCurrency, ChartItem, ChartsResponse, HistoryRange } from "@shared/api.ts";
 import type { Display } from "./Charts.tsx";
-import { asHistory, asSession, type ChartItem, type ChartsResponse } from "./lib/api.ts";
+import { asHistory, asSession } from "./lib/api.ts";
 import { resolver, type PositionRow } from "./lib/broker.ts";
 import { demoBroker } from "./lib/demo/index.ts";
 import { money, signedPct } from "./lib/format.ts";

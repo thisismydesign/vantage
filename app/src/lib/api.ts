@@ -1,33 +1,11 @@
 import { useEffect, useState } from "react";
-import type { IntradaySeries, VantageHistory } from "@shared/types.ts";
+import type { ChartRange, ChartsResponse, IntradaySeries, VantageHistory } from "@shared/api.ts";
 import { DEMO_SYMBOLS, withDemoList } from "./demo/index.ts";
 import type { SessionState } from "./supabase.ts";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY as string | undefined;
 export const CONFIGURED = Boolean(SUPABASE_URL);
-
-export type ChartRange = "1d" | "24h" | "1w" | "history";
-export type ChartTheme = { id: string; label: string };
-export type ChartItem = {
-  ticker: string;
-  name: string;
-  quoteSymbol: string | null;
-  currency: string | null;
-  themes: string[];
-  /** Symbols a broker may report this holding under. */
-  aliases: string[];
-};
-export type ChartsResponse = {
-  asOf: string;
-  range: ChartRange;
-  ttlMs: number;
-  themes: ChartTheme[];
-  items: ChartItem[];
-  series: Record<string, IntradaySeries | VantageHistory>;
-  fetchedAt: Record<string, string>;
-  errors: Record<string, string>;
-};
 
 export const asSession = (s: IntradaySeries | VantageHistory | undefined) =>
   s && "points" in s ? s : undefined;

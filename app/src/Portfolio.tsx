@@ -15,13 +15,13 @@ import {
 import { useMediaQuery } from "@mantine/hooks";
 import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
-import type { Position } from "@shared/types.ts";
+import type { ChartItem, ChartTheme } from "@shared/api.ts";
 import { Stat } from "./components/Stat.tsx";
 import { NavHistory } from "./NavHistory.tsx";
 import { displayDate, displayDateTime, pct, signedPct } from "./lib/format.ts";
 import { usePrivateMoney } from "./lib/privacy.tsx";
 import { TONE } from "./theme.ts";
-import type { ChartItem, ChartTheme } from "./lib/api.ts";
+import type { Position } from "./lib/types.ts";
 import type { Built, NavRow } from "./lib/broker.ts";
 
 const UNCLASSIFIED = "unclassified";

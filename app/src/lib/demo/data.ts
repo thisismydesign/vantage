@@ -3,7 +3,7 @@
 // Its latest statement is always the last Friday before today and every broker date counts days from it, so trades keep their weekdays; calendar and news count from today.
 // Relative imports only: the seed script runs this under Node.
 
-import type { EventCategory, Sentiment } from "../../../../shared/types.ts";
+import type { EventCategory, Sentiment } from "../../../../shared/tables.ts";
 
 export const DEMO_ACCOUNT = "U1234567";
 export const DEMO_BASE_CURRENCY = "USD";

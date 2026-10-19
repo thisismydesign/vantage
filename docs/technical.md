@@ -21,6 +21,12 @@ Purpose: the stack and the principles every change MUST respect. Intent, not imp
 - Auth, PostgREST, RLS, Vault and generated OpenAPI before custom code.
 - Edge Functions only for what those cannot do.
 
+### One contract between app and backend
+
+- `app/` and `supabase/functions/` never import each other. What both must agree on lives once in `shared/`: the function's responses, the values the schema constrains, the agent-key protocol, the range windows.
+- `shared/` holds only that contract. It imports nothing, so it runs in the browser, Deno and Node alike.
+- Tooling (`supabase/seed/`, `tests/`, `e2e/`) may import any side.
+
 ### Mobile-first
 
 ### Agent-first

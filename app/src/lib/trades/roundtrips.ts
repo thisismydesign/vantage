@@ -1,4 +1,4 @@
-import type { RoundTrip, TradeFill } from "../../../../shared/types.ts";
+import type { RoundTrip, TradeFill } from "../types.ts";
 
 const DAY = 86_400_000;
 const EPS = 1e-9;

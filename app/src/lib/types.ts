@@ -1,5 +1,3 @@
-export type AssetKind = "equity" | "crypto" | "private";
-
 export type PositionSource = "ibkr" | "kraken";
 
 export interface Position {
@@ -43,21 +41,6 @@ export interface Portfolio {
   };
   watchOnly: string[];
   warnings: string[];
-}
-
-export type HistoryRange = "1m" | "3m" | "6m" | "ytd" | "1y" | "5y";
-
-export interface RangeSeries {
-  /** Keys are ISO times for intraday bars, dates for daily and weekly ones. */
-  points: [string, number][];
-  /** At each point's FX rate, aligned with `points`. */
-  converted?: Record<BaseCurrency, (number | null)[]>;
-}
-
-export interface VantageHistory {
-  symbol: string;
-  currency?: string;
-  ranges: Record<HistoryRange, RangeSeries>;
 }
 
 export interface TradeFill {
@@ -187,71 +170,4 @@ export interface TradesFile {
   names: TradeName[];
   sources: string[];
   warnings: string[];
-}
-
-export type BaseCurrency = "EUR" | "USD";
-
-export interface IntradaySeries {
-  marketOpen?: string;
-  marketClose?: string;
-  intervalMinutes?: number;
-  ticker: string;
-  currency: string;
-  timeZone: string;
-  session: string;
-  previousCloseAt?: string;
-  /** Pre, regular and post merged. */
-  openPeriods?: [string, string][];
-  /** At each point's FX rate, aligned with `points`. */
-  converted?: Record<BaseCurrency, (number | null)[]>;
-  previousCloseConverted?: Record<BaseCurrency, number | null>;
-  previousClose: number | null;
-  points: [string, number][];
-}
-
-import type { EventCategory } from "../supabase/functions/_shared/events.ts";
-export type { EventCategory };
-
-export interface CalendarEvent {
-  id: string;
-  ticker: string;
-  category: EventCategory;
-  kind: string | null;
-  title: string;
-  description: string | null;
-  starts_on: string;
-  ends_on: string | null;
-  estimated: boolean;
-  source: string | null;
-  url: string | null;
-  external_id: string | null;
-  updated_at: string;
-}
-
-import type { Sentiment } from "../supabase/functions/_shared/news.ts";
-export type { Sentiment };
-
-export interface NewsItem {
-  id: string;
-  ticker: string;
-  published_at: string;
-  source: string | null;
-  title: string;
-  description: string | null;
-  url: string | null;
-  sentiment: Sentiment | null;
-  /** Whether the market had it priced in; null when the agent gave no view. */
-  expected: boolean | null;
-  external_id: string | null;
-  updated_at: string;
-}
-
-/** The hash never leaves the database. */
-export interface ApiKey {
-  id: string;
-  name: string;
-  prefix: string;
-  created_at: string;
-  last_used_at: string | null;
-  revoked_at: string | null;
 }

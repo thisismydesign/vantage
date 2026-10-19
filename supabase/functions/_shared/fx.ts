@@ -1,5 +1,4 @@
-export type BaseCurrency = "EUR" | "USD";
-export const BASES: BaseCurrency[] = ["EUR", "USD"];
+import { BASES, type BaseCurrency } from "../../../shared/api.ts";
 
 /** `[key, rate]` sorted by key; keys are ISO times or dates, compared as strings. */
 export type RateSeries = [string, number][];

@@ -1,4 +1,4 @@
-import type { TradeClose, TradeFill, TradeName } from "../../../../shared/types.ts";
+import type { TradeClose, TradeFill, TradeName } from "../types.ts";
 
 const EPS = 1e-9;
 

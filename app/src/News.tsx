@@ -11,7 +11,7 @@ import {
   Text,
 } from "@mantine/core";
 import { useMemo, useState } from "react";
-import type { NewsItem } from "@shared/types.ts";
+import type { NewsItem } from "@shared/tables.ts";
 import { API_BASE } from "./lib/api.ts";
 import { DayHeading } from "./DayHeading.tsx";
 import { dayKey } from "./lib/events.ts";

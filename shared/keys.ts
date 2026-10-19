@@ -1,4 +1,4 @@
-// Shared because the browser makes keys and the function checks them; Web Crypto exists in every runtime here.
+// The browser makes keys and the function checks them; Web Crypto exists in every runtime here.
 
 export const KEY_PREFIX = "vk_";
 /** Characters shown in lists so the owner can tell keys apart. */

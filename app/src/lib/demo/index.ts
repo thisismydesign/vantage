@@ -1,5 +1,5 @@
-import type { CalendarEvent, NewsItem } from "@shared/types.ts";
-import type { ChartsResponse } from "../api.ts";
+import type { ChartsResponse } from "@shared/api.ts";
+import type { CalendarEvent, NewsItem } from "@shared/tables.ts";
 import type { BrokerData } from "../broker.ts";
 import { demoList, demoRows } from "./data.ts";
 
