@@ -9,6 +9,9 @@ export type HistoryRange = "1m" | "3m" | "6m" | "ytd" | "1y" | "5y";
 export interface IntradaySeries {
   marketOpen?: string;
   marketClose?: string;
+  /** Pre-market start and after-hours end; absent where the listing has none. */
+  extendedOpen?: string;
+  extendedClose?: string;
   intervalMinutes?: number;
   ticker: string;
   currency: string;

@@ -136,3 +136,42 @@ test("24H keeps the open periods that overlap the window", () => {
     ["2026-10-15T08:00:00.000Z", "2026-10-16T00:00:00.000Z"],
   ]);
 });
+
+test("1D keeps pre-market and after-hours bars; the previous close skips after-hours ones", () => {
+  const result = intradayRange(
+    "TEST",
+    {
+      meta: {
+        currency: "USD",
+        exchangeTimezoneName: "America/New_York",
+        currentTradingPeriod: {
+          pre: { start: "2026-10-15T08:00:00Z", end: "2026-10-15T13:30:00Z" },
+          regular: { start: "2026-10-15T13:30:00Z", end: "2026-10-15T20:00:00Z" },
+          post: { start: "2026-10-15T20:00:00Z", end: "2026-10-16T00:00:00Z" },
+        },
+        regularPeriods: [
+          { start: "2026-10-14T13:30:00.000Z", end: "2026-10-14T20:00:00.000Z" },
+          { start: "2026-10-15T13:30:00.000Z", end: "2026-10-15T20:00:00.000Z" },
+        ],
+      },
+      quotes: [
+        { date: "2026-10-14T19:55:00Z", close: 100 },
+        { date: "2026-10-14T23:55:00Z", close: 98 },
+        { date: "2026-10-15T08:00:00Z", close: 99 },
+        { date: "2026-10-15T14:00:00Z", close: 101 },
+        { date: "2026-10-15T22:00:00Z", close: 103 },
+      ],
+    },
+    "1d",
+    Date.parse("2026-10-15T22:01:00Z"),
+  );
+  assert.deepEqual(
+    result.points.map(([, close]) => close),
+    [99, 101, 103],
+  );
+  assert.equal(result.extendedOpen, "2026-10-15T08:00:00.000Z");
+  assert.equal(result.extendedClose, "2026-10-16T00:00:00.000Z");
+  assert.equal(result.marketOpen, "2026-10-15T13:30:00.000Z");
+  assert.equal(result.previousCloseAt, "2026-10-14T19:55:00.000Z");
+  assert.equal(result.previousClose, 100);
+});

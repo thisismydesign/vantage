@@ -247,7 +247,8 @@ const TickerChart = memo(function TickerChart({
         }),
       );
     }
-    const open = session?.marketOpen ? Date.parse(session.marketOpen) : bars[0]?.x;
+    const opening = session?.extendedOpen ?? session?.marketOpen;
+    const open = opening ? Date.parse(opening) : bars[0]?.x;
     if (range !== "1d" || sessionBaseline == null || open == null) return bars;
     return bridged([
       {
@@ -282,6 +283,27 @@ const TickerChart = memo(function TickerChart({
   const currency = session ? (sessionConverted ? base : session.currency) : saved.currency;
   const nativeTag =
     last && native && currency !== native ? money(last.native ?? last.value, native) : undefined;
+  const { regularHours, extendedHours, outsideHours } = useMemo(() => {
+    const regular =
+      range === "1d" && session?.marketOpen && session?.marketClose
+        ? [Date.parse(session.marketOpen), Date.parse(session.marketClose)]
+        : undefined;
+    return {
+      regularHours: regular,
+      extendedHours: regular && [
+        session?.extendedOpen ? Date.parse(session.extendedOpen) : regular[0],
+        session?.extendedClose ? Date.parse(session.extendedClose) : regular[1],
+      ],
+      outsideHours: (row: Row) =>
+        !regular || row.previousClose
+          ? undefined
+          : row.x < regular[0]
+            ? "Pre-market"
+            : row.x >= regular[1]
+              ? "After hours"
+              : undefined,
+    };
+  }, [range, session]);
 
   const formats = useMemo(() => {
     const make = (options: Intl.DateTimeFormatOptions, zone = timeZone) =>
@@ -316,10 +338,7 @@ const TickerChart = memo(function TickerChart({
     const decimals =
       yTicks.length > 1 ? stepDecimals(Number((yTicks[1] - yTicks[0]).toPrecision(10))) : 2;
     const maxLabels = compact ? 3 : 5;
-    const sessionBounds =
-      range === "1d" && session?.marketOpen && session?.marketClose
-        ? [Date.parse(session.marketOpen), Date.parse(session.marketClose)]
-        : undefined;
+    const sessionBounds = extendedHours;
     // A listing younger than the window leaves the left empty on purpose.
     const end = Date.parse(asOf);
     const window: [number, number] | undefined = short
@@ -364,7 +383,10 @@ const TickerChart = memo(function TickerChart({
     const rowLabel = (row: Row) => {
       const date = new Date(row.date);
       if (row.previousClose && !row.date) return "Previous close";
-      if (session) return `${formats.day.format(date)}, ${formats.time.format(date)}`;
+      if (session)
+        return [`${formats.day.format(date)}, ${formats.time.format(date)}`, outsideHours(row)]
+          .filter(Boolean)
+          .join(" · ");
       return row.date.includes("T")
         ? formats.localDayTime.format(date)
         : formats.dayYear.format(date);
@@ -391,6 +413,8 @@ const TickerChart = memo(function TickerChart({
     short,
     rows,
     previousCloseRow,
+    extendedHours,
+    outsideHours,
     baseline,
     compact,
     range,
@@ -469,6 +493,7 @@ const TickerChart = memo(function TickerChart({
                 : `${change >= 0 ? "▲" : "▼"} ${signedPct(change)} (${delta! >= 0 ? "+" : ""}${price(delta!)})`}{" "}
               <Text span c="dimmed" size="sm">
                 {range === "1d" ? "vs previous close" : "in this period"}
+                {last && outsideHours(last) ? ` · ${outsideHours(last)!.toLowerCase()}` : ""}
               </Text>
             </Text>
           </Group>
@@ -525,6 +550,22 @@ const TickerChart = memo(function TickerChart({
             tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
             tickFormatter: axes.xLabel,
           }}
+          referenceAreas={
+            regularHours && extendedHours
+              ? [
+                  [extendedHours[0], regularHours[0]],
+                  [regularHours[1], extendedHours[1]],
+                ]
+                  .filter(([from, to]) => to > from)
+                  .map(([x1, x2]) => ({
+                    x1,
+                    x2,
+                    color: TONE.neutral,
+                    fillOpacity: 0.12,
+                    ifOverflow: "hidden" as const,
+                  }))
+              : []
+          }
           referenceLines={
             range === "1d" && baseline != null
               ? [

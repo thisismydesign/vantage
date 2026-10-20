@@ -1,13 +1,17 @@
 import type { IntradaySeries } from "../../../shared/api.ts";
 
+type Period = { start: Date | string; end: Date | string };
+
 export interface Chart {
   meta: {
     currency: string;
     exchangeTimezoneName: string;
     previousClose?: number;
-    currentTradingPeriod?: { regular: { start: Date | string; end: Date | string } };
+    currentTradingPeriod?: Record<"pre" | "regular" | "post", Period> | { regular: Period };
     /** Merged where they touch; ISO strings. */
     openPeriods?: { start: string; end: string }[];
+    /** Regular hours only, so a previous close skips after-hours bars; ISO strings. */
+    regularPeriods?: { start: string; end: string }[];
   };
   quotes: { date: Date | string; close: number | null }[];
 }
@@ -25,7 +29,10 @@ export function latestSession(ticker: string, chart: Chart, sessionCount = 1): I
   const session = dayOf.at(-1) ?? "";
   const days = new Set([...new Set(dayOf)].slice(-sessionCount));
   const current = points.filter((_, i) => days.has(dayOf[i]));
-  const previous = points.filter((_, i) => dayOf[i] < session).at(-1);
+  const regular = chart.meta.regularPeriods;
+  const inRegularHours = (date: string) =>
+    !regular?.length || regular.some((p) => date >= p.start && date < p.end);
+  const previous = points.filter(([date], i) => dayOf[i] < session && inRegularHours(date)).at(-1);
   return {
     ticker,
     currency: chart.meta.currency,
@@ -55,21 +62,22 @@ export function intradayRange(
   } else if (range === "1d") {
     // Until today's first bar the previous session shows, so Asian listings do not blank out after their midnight. Yahoo's previousClose is then that session's own close.
     const day = new Intl.DateTimeFormat("en-CA", { timeZone: series.timeZone });
-    const showingEarlierSession = series.session && series.session < day.format(now);
-    if (showingEarlierSession) {
-      const prior = chart.quotes
-        .filter((q) => q.close !== null && Number.isFinite(q.close))
-        .filter((q) => day.format(new Date(q.date)) < series.session)
-        .at(-1);
+    if (series.session && series.session < day.format(now)) {
+      const prior = chart.quotes.find(
+        (q) => q.close !== null && new Date(q.date).toISOString() === series.previousCloseAt,
+      );
       if (prior) series.previousClose = prior.close;
     }
-    const hours = chart.meta.currentTradingPeriod?.regular;
-    if (hours && day.format(new Date(hours.start)) === series.session) {
-      series.marketOpen = new Date(hours.start).toISOString();
-      series.marketClose = new Date(hours.end).toISOString();
-      series.points = series.points.filter(
-        ([date]) => date >= series.marketOpen! && date <= series.marketClose!,
-      );
+    const hours = chart.meta.currentTradingPeriod;
+    if (hours && day.format(new Date(hours.regular.start)) === series.session) {
+      const iso = (date: Date | string) => new Date(date).toISOString();
+      series.marketOpen = iso(hours.regular.start);
+      series.marketClose = iso(hours.regular.end);
+      const pre = "pre" in hours ? iso(hours.pre.start) : series.marketOpen;
+      const post = "post" in hours ? iso(hours.post.end) : series.marketClose;
+      if (pre < series.marketOpen) series.extendedOpen = pre;
+      if (post > series.marketClose) series.extendedClose = post;
+      series.points = series.points.filter(([date]) => date >= pre && date <= post);
     }
   }
   return series;

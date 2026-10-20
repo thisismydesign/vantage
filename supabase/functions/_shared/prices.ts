@@ -68,20 +68,29 @@ async function yahooChart(
   const scale = (value: number | null | undefined) =>
     typeof value === "number" ? (pence ? value / 100 : value) : (value ?? null);
   const closes: (number | null)[] = (result.indicators?.quote?.[0]?.close ?? []).map(scale);
-  const regular = result.meta?.currentTradingPeriod?.regular;
+  const current = result.meta?.currentTradingPeriod;
+  const hours = (period: Period) => ({ start: iso(period.start), end: iso(period.end) });
   // tradingPeriods is pre/regular/post arrays per day, or just the regular days.
   const raw = result.meta?.tradingPeriods;
   const periods: Period[] = (
     Array.isArray(raw) ? raw.flat() : Object.values(raw ?? {}).flat(2)
   ) as Period[];
+  const regularPeriods: Period[] = (Array.isArray(raw) ? raw : (raw?.regular ?? [])).flat();
   return {
     meta: {
       currency: pence ? "GBP" : result.meta.currency,
       exchangeTimezoneName: result.meta.exchangeTimezoneName,
       previousClose: scale(result.meta.previousClose) ?? undefined,
       openPeriods: mergeTouching(periods),
-      currentTradingPeriod: regular
-        ? { regular: { start: iso(regular.start), end: iso(regular.end) } }
+      regularPeriods: mergeTouching(regularPeriods),
+      currentTradingPeriod: current?.regular
+        ? current.pre && current.post
+          ? {
+              pre: hours(current.pre),
+              regular: hours(current.regular),
+              post: hours(current.post),
+            }
+          : { regular: hours(current.regular) }
         : undefined,
     },
     quotes: ((result.timestamp ?? []) as number[]).map((t, i) => ({
@@ -205,7 +214,7 @@ async function intraday(
   const chart = await yahooChart(symbol, {
     from: Date.now() - LOOKBACK_DAYS[range] * DAY_MS,
     interval: INTERVAL[range],
-    includePrePost: range === "24h",
+    includePrePost: range !== "1w",
   });
   const series = intradayRange(symbol, chart, range);
   const thinned = thin(series.points);
