@@ -20,10 +20,10 @@ test("shows the demo watchlist with charts", async ({ page }) => {
   await expect(page.getByText("Vantage").first()).toBeVisible();
   await expect(page.getByText("You are looking at a demo account.")).toBeVisible();
   await page.getByRole("button", { name: "Sign up to customize." }).click();
-  await expect(page.getByRole("button", { name: "Create account" })).toBeVisible();
-  await page.getByText("Via agent", { exact: true }).click();
   await expect(page.getByText(/POST .*\/onboard/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy instructions" })).toBeVisible();
+  await page.getByRole("button", { name: "Sign up", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Create account" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^(Collapse|Expand) / }).first()).toBeVisible();
   await expect(page.locator("svg.recharts-surface").first()).toBeVisible({ timeout: 60_000 });
 });

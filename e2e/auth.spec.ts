@@ -31,6 +31,7 @@ test("signs up in the browser, then signs back in with the password", async ({ p
   try {
     await page.goto("/");
     await page.getByRole("button", { name: "Sign up to customize." }).click();
+    await page.getByRole("button", { name: "Sign up", exact: true }).click();
     await fillAndSubmit(page, email, "short", "Create account");
     await expect(page.getByText("The password needs at least 8 characters.")).toBeVisible();
     await fillAndSubmit(page, email, secret, "Create account");
@@ -40,7 +41,7 @@ test("signs up in the browser, then signs back in with the password", async ({ p
     await page.getByRole("menuitem", { name: "Sign out" }).click();
 
     await page.getByRole("button", { name: "Sign up to customize." }).click();
-    await page.getByText("Sign in", { exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Sign in", exact: true }).click();
     await fillAndSubmit(page, email, "wrong-password", "Sign in");
     await expect(page.getByText("Invalid login credentials")).toBeVisible();
     await fillAndSubmit(page, email, secret, "Sign in");

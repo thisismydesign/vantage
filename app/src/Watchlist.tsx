@@ -11,8 +11,8 @@ import {
   Paper,
   PasswordInput,
   Popover,
-  SegmentedControl,
   Select,
+  SimpleGrid,
   Stack,
   Tabs,
   Text,
@@ -159,19 +159,26 @@ function PasswordForm({ mode }: { mode: "signin" | "signup" }) {
 }
 
 function AuthForms({ mode, onMode }: { mode: AuthMode; onMode: (mode: AuthMode) => void }) {
+  const choice = (value: AuthMode, label: string) => (
+    <Button
+      size="xs"
+      fullWidth
+      variant={mode === value ? "light" : "default"}
+      aria-pressed={mode === value}
+      onClick={() => onMode(value)}
+    >
+      {label}
+    </Button>
+  );
   return (
     <Stack gap="sm">
-      <SegmentedControl
-        size="xs"
-        fullWidth
-        value={mode}
-        onChange={(v) => onMode(v as AuthMode)}
-        data={[
-          { value: "agent", label: "Via agent" },
-          { value: "signin", label: "Sign in" },
-          { value: "signup", label: "Sign up" },
-        ]}
-      />
+      <Stack gap={6}>
+        {choice("agent", "Onboard with your AI agent")}
+        <SimpleGrid cols={2} spacing={6}>
+          {choice("signin", "Sign in")}
+          {choice("signup", "Sign up")}
+        </SimpleGrid>
+      </Stack>
       {mode === "agent" ? <AgentOnboarding /> : <PasswordForm key={mode} mode={mode} />}
     </Stack>
   );
@@ -612,7 +619,7 @@ export function ProfileMenu() {
   useEffect(() => {
     // The demo banner's call to sign up.
     const open = () => {
-      setMode("signup");
+      setMode("agent");
       setSignInOpen(true);
     };
     window.addEventListener(OPEN_SIGN_IN, open);
