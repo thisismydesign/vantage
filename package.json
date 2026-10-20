@@ -13,6 +13,7 @@
     "dev": "vite app",
     "build": "vite build app",
     "preview": "vite preview app",
+    "db:start": "supabase start && docker update --restart=no $(docker ps -aq --filter label=com.supabase.cli.project=vantage) >/dev/null",
     "db:reset": "supabase db reset && node supabase/seed/dev-account.ts",
     "deploy": "pnpm run build && cd app && wrangler deploy",
     "supabase:deploy": "supabase db push && supabase functions deploy --use-api",
