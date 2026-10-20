@@ -8,8 +8,8 @@ import { DAY_MS, throttled } from "../_shared/throttle.ts";
 import { loadList } from "../_shared/watchlist.ts";
 import { resolveCaller } from "./auth.ts";
 
-// Enough to set up and keep a large watchlist; not enough to use the function as a search proxy.
-const LOOKUP_LIMIT = { max: 300, perMs: DAY_MS };
+// Enough to set up a watchlist in a day; not enough to use the function as a search proxy.
+const LOOKUP_LIMIT = { max: 100, perMs: DAY_MS };
 
 async function searchSymbols(query: string): Promise<SymbolMatch[]> {
   const url = new URL("https://query2.finance.yahoo.com/v1/finance/search");
