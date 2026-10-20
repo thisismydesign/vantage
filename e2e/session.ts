@@ -8,10 +8,10 @@ type Admin = SupabaseClient<any, any, any>;
 
 export const TEST_EMAIL = process.env.VANTAGE_TEST_EMAIL ?? "e2e@vantage.test";
 export const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-export const ANON_KEY = process.env.VITE_SUPABASE_KEY;
+export const PUBLISHABLE_KEY = process.env.VITE_SUPABASE_KEY;
 const SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
 
-export const canSignIn = Boolean(SUPABASE_URL && ANON_KEY && SECRET_KEY);
+export const canSignIn = Boolean(SUPABASE_URL && PUBLISHABLE_KEY && SECRET_KEY);
 
 export const persistedSessionKey = () =>
   `sb-${new URL(SUPABASE_URL!).hostname.split(".")[0]}-auth-token`;
@@ -26,7 +26,7 @@ export async function testSession(): Promise<Session> {
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email: TEST_EMAIL });
   if (link.error) throw link.error;
   await seedTemplateIfEmpty(admin, link.data.user.id);
-  const anon = createClient(SUPABASE_URL!, ANON_KEY!, { auth: { persistSession: false } });
+  const anon = createClient(SUPABASE_URL!, PUBLISHABLE_KEY!, { auth: { persistSession: false } });
   const otp = await anon.auth.verifyOtp({
     type: "magiclink",
     token_hash: link.data.properties.hashed_token,
@@ -76,7 +76,7 @@ export async function signIn(page: Page): Promise<Session> {
 }
 
 export const restHeaders = (session: Session) => ({
-  apikey: ANON_KEY ?? "",
+  apikey: PUBLISHABLE_KEY ?? "",
   Authorization: `Bearer ${session.access_token}`,
   "Content-Type": "application/json",
 });

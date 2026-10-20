@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
-  ANON_KEY,
+  PUBLISHABLE_KEY,
   SUPABASE_URL,
   TEST_EMAIL,
   admin,
@@ -36,7 +36,10 @@ test("signs in the test user, whose watchlist is priced", async ({ page, request
   await expect(page.getByText("You are looking at a demo account.")).toBeHidden();
   await page.getByRole("button", { name: "Account", exact: true }).click();
   await expect(page.getByText(TEST_EMAIL)).toBeVisible();
-  const headers = { apikey: ANON_KEY ?? "", Authorization: `Bearer ${session.access_token}` };
+  const headers = {
+    apikey: PUBLISHABLE_KEY ?? "",
+    Authorization: `Bearer ${session.access_token}`,
+  };
   const prices = await request.get(`${WATCHLIST}?range=1d`, { headers, timeout: 60_000 });
   expect(prices.ok()).toBe(true);
   expect((await prices.json()).items.length).toBeGreaterThan(0);
@@ -46,7 +49,7 @@ test("signs in the test user, whose watchlist is priced", async ({ page, request
 });
 
 test("serves the agent instructions, the API description and prices", async ({ request }) => {
-  const headers = { apikey: ANON_KEY ?? "" };
+  const headers = { apikey: PUBLISHABLE_KEY ?? "" };
   const instructions = await request.get(`${API}/agent`, { headers });
   expect(instructions.ok()).toBe(true);
   expect(await instructions.text()).toContain("# Vantage for agents");
@@ -63,7 +66,7 @@ test("serves the agent instructions, the API description and prices", async ({ r
 });
 
 test("keeps the watchlist function to signed-in callers", async ({ request }) => {
-  const headers = { apikey: ANON_KEY ?? "" };
+  const headers = { apikey: PUBLISHABLE_KEY ?? "" };
   expect((await request.get(`${WATCHLIST}?range=1d`, { headers })).status()).toBe(401);
   // Browsers preflight without credentials; the gateway MUST let that through for the real call to happen.
   const preflight = await request.fetch(`${WATCHLIST}?range=1d`, {
@@ -98,7 +101,10 @@ test("limits each user's lookups per day", async ({ request }) => {
   const rows = Array.from({ length: 100 }, () => ({ caller, route: "lookup" }));
   await admin().from("throttle").insert(rows);
   try {
-    const headers = { apikey: ANON_KEY ?? "", Authorization: `Bearer ${session.access_token}` };
+    const headers = {
+      apikey: PUBLISHABLE_KEY ?? "",
+      Authorization: `Bearer ${session.access_token}`,
+    };
     const response = await request.get(`${WATCHLIST}?lookup=NVDA`, { headers });
     expect(response.status()).toBe(429);
   } finally {

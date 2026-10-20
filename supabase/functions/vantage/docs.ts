@@ -8,7 +8,7 @@ export type Endpoints = {
   /** Project URL. */
   supabase: string;
   /** Publishable key; sent as the `apikey` header on every Supabase call. */
-  anonKey: string;
+  publishableKey: string;
   /** The web app. */
   site: string;
 };
@@ -23,7 +23,7 @@ export const endpoints = (e: Endpoints) => ({
   restOpenapi: `${e.base}/rest-openapi.json`,
   openapi: `${e.base}/openapi.json`,
   instructions: `${e.base}/agent`,
-  anonKey: e.anonKey,
+  publishableKey: e.publishableKey,
   site: e.site,
 });
 
@@ -88,7 +88,7 @@ export function openapi(e: Endpoints) {
         session: {
           type: "http",
           scheme: "bearer",
-          description: `A Supabase access token, valid until the session's expires_at. Refresh it: POST ${u.tokenRefresh} with header apikey: ${e.anonKey} and JSON {"refresh_token"}.`,
+          description: `A Supabase access token, valid until the session's expires_at. Refresh it: POST ${u.tokenRefresh} with header apikey: ${e.publishableKey} and JSON {"refresh_token"}.`,
         },
       },
       schemas: { Group: group, Item: item, Session: session },

@@ -396,6 +396,9 @@ deno_version = 2
 # Local only; the hosted project takes its secrets from `supabase secrets set`.
 [edge_runtime.secrets]
 VANTAGE_SITE_URL = "http://localhost:5173"
+# Hosted runtimes list the project's keys as SUPABASE_*_KEYS, which the CLI will not pass locally; these stand in, with its fixed local keys.
+VANTAGE_PUBLISHABLE_KEYS = '{"default":"sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH"}'
+VANTAGE_SECRET_KEYS = '{"default":"sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz"}'
 
 [analytics]
 enabled = true

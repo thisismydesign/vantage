@@ -8,15 +8,13 @@ import {
   type OnboardResponse,
 } from "../../../shared/api.ts";
 import { KEY_PREFIX, sha256Hex } from "../../../shared/keys.ts";
-import { db, SUPABASE_URL } from "../_shared/db.ts";
+import { db, PUBLISHABLE_KEY, SECRET_KEY, SUPABASE_URL } from "../_shared/db.ts";
 import { CORS, json, text } from "../_shared/http.ts";
 import { isChartRange, prices } from "../_shared/prices.ts";
 import { HOUR_MS, throttled } from "../_shared/throttle.ts";
 import { addGroup, addItem, loadList, publicList, seedDefaults } from "../_shared/watchlist.ts";
 import { agentInstructions, endpoints, openapi, type Endpoints } from "./docs.ts";
 
-// The runtime's SUPABASE_ANON_KEY is the new publishable key; VANTAGE_ANON_KEY pins the one the project accepts.
-const ANON_KEY = Deno.env.get("VANTAGE_ANON_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 const SITE = Deno.env.get("VANTAGE_SITE_URL")!;
 
 const clientIp = (request: Request) =>
@@ -27,7 +25,7 @@ const clientIp = (request: Request) =>
 async function mintSession(email: string) {
   const link = await db.auth.admin.generateLink({ type: "magiclink", email });
   if (link.error) throw new Error(link.error.message);
-  const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  const anon = createClient(SUPABASE_URL, PUBLISHABLE_KEY, { auth: { persistSession: false } });
   const verified = await anon.auth.verifyOtp({
     type: "magiclink",
     token_hash: link.data.properties.hashed_token,
@@ -150,13 +148,12 @@ let restSpec: { at: number; spec: Promise<RestSpec> } | undefined;
 // Supabase serves its generated REST description only to the service role.
 function fetchRestSpec(): Promise<RestSpec> {
   if (restSpec && Date.now() - restSpec.at < REST_SPEC_TTL_MS) return restSpec.spec;
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const spec = fetch(`${SUPABASE_URL}/rest/v1/`, {
-    headers: { apikey: key, Authorization: `Bearer ${key}` },
-  }).then(async (response) => {
-    if (!response.ok) throw new Error(`REST description unavailable (${response.status})`);
-    return (await response.json()) as RestSpec;
-  });
+  const spec = fetch(`${SUPABASE_URL}/rest/v1/`, { headers: { apikey: SECRET_KEY } }).then(
+    async (response) => {
+      if (!response.ok) throw new Error(`REST description unavailable (${response.status})`);
+      return (await response.json()) as RestSpec;
+    },
+  );
   restSpec = { at: Date.now(), spec };
   spec.catch(() => (restSpec = undefined));
   return spec;
@@ -196,7 +193,7 @@ async function restOpenapi(api: Endpoints) {
         type: "apiKey",
         in: "header",
         name: "apikey",
-        description: `Always ${api.anonKey}`,
+        description: `Always ${api.publishableKey}`,
       },
       session: {
         type: "apiKey",
@@ -242,7 +239,7 @@ Deno.serve(async (request) => {
     functions,
     base: `${functions}/vantage`,
     supabase: SUPABASE_URL,
-    anonKey: ANON_KEY,
+    publishableKey: PUBLISHABLE_KEY,
     site: SITE,
   };
   const method = request.method;

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { KEY_SHOWN, newKey, sha256Hex } from "../shared/keys.ts";
-import { ANON_KEY, SUPABASE_URL, canSignIn, restHeaders, signIn } from "./session.ts";
+import { PUBLISHABLE_KEY, SUPABASE_URL, canSignIn, restHeaders, signIn } from "./session.ts";
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const API = `${SUPABASE_URL}/functions/v1/vantage`;
@@ -17,12 +17,12 @@ test("an agent key opens a session until revoked", async ({ page, request }) => 
   expect(made.status()).toBe(201);
   const [{ id }] = (await made.json()) as { id: string }[];
 
-  const asAgent = { apikey: ANON_KEY ?? "", Authorization: `Bearer ${key}` };
+  const asAgent = { apikey: PUBLISHABLE_KEY ?? "", Authorization: `Bearer ${key}` };
   const traded = await request.post(`${API}/token`, { headers: asAgent });
   expect(traded.status()).toBe(200);
   const { session: agent } = (await traded.json()) as { session: { access_token: string } };
   const list = await request.get(`${REST}/watchlist?select=ticker&limit=1`, {
-    headers: { apikey: ANON_KEY ?? "", Authorization: `Bearer ${agent.access_token}` },
+    headers: { apikey: PUBLISHABLE_KEY ?? "", Authorization: `Bearer ${agent.access_token}` },
   });
   expect(list.status()).toBe(200);
 

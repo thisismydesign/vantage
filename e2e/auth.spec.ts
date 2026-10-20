@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import {
-  ANON_KEY,
+  PUBLISHABLE_KEY,
   SUPABASE_URL,
   TEST_EMAIL,
   canSignIn,
@@ -57,7 +57,7 @@ test("onboards an agent without a password and returns one to sign in with", asy
   test.skip(!local || !canSignIn, "local stack only");
   const email = `agent-${Date.now()}@vantage.test`;
   try {
-    const headers = { apikey: ANON_KEY ?? "" };
+    const headers = { apikey: PUBLISHABLE_KEY ?? "" };
     const short = await request.post(`${API}/onboard`, {
       headers,
       data: { email, password: "short" },
@@ -68,7 +68,7 @@ test("onboards an agent without a password and returns one to sign in with", asy
     const body = await created.json();
     expect(body.session.access_token).toBeTruthy();
     expect(body.password.length).toBeGreaterThanOrEqual(20);
-    const anon = createClient(SUPABASE_URL!, ANON_KEY!, { auth: { persistSession: false } });
+    const anon = createClient(SUPABASE_URL!, PUBLISHABLE_KEY!, { auth: { persistSession: false } });
     const signedIn = await anon.auth.signInWithPassword({ email, password: body.password });
     expect(signedIn.error).toBeNull();
     const again = await request.post(`${API}/onboard`, { headers, data: { email } });
@@ -88,7 +88,7 @@ test("changes the password from Settings", async ({ page }) => {
   await page.getByLabel("New password").fill(secret);
   await page.getByRole("button", { name: "Change password" }).click();
   await expect(page.getByText("Password changed.")).toBeVisible();
-  const anon = createClient(SUPABASE_URL!, ANON_KEY!, { auth: { persistSession: false } });
+  const anon = createClient(SUPABASE_URL!, PUBLISHABLE_KEY!, { auth: { persistSession: false } });
   const signedIn = await anon.auth.signInWithPassword({ email: TEST_EMAIL, password: secret });
   expect(signedIn.error).toBeNull();
 });
