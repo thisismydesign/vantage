@@ -95,6 +95,7 @@ function PasswordForm({ mode }: { mode: "signin" | "signup" }) {
   const signup = mode === "signup";
   // Locally, signing in with both fields empty means the dev account.
   const devAccount = import.meta.env.DEV && !signup && !email && !password;
+  const ready = devAccount || (!!email && !!password);
   const submit = async () => {
     if (signup && password.length < MIN_PASSWORD_LENGTH)
       return setError(`The password needs at least ${MIN_PASSWORD_LENGTH} characters.`);
@@ -149,7 +150,9 @@ function PasswordForm({ mode }: { mode: "signin" | "signup" }) {
           size="xs"
           type="submit"
           loading={busy}
-          disabled={!devAccount && (!email || !password)}
+          disabled={!ready}
+          // Disabled buttons lose their border; keep one so it still reads as a button.
+          bd={ready ? undefined : "1px solid var(--mantine-color-default-border)"}
         >
           {signup ? "Create account" : "Sign in"}
         </Button>
@@ -163,7 +166,9 @@ function AuthForms({ mode, onMode }: { mode: AuthMode; onMode: (mode: AuthMode) 
     <Button
       size="xs"
       fullWidth
-      variant={mode === value ? "light" : "default"}
+      variant="default"
+      // The selected one keeps the hover gray.
+      bg={mode === value ? "var(--mantine-color-default-hover)" : undefined}
       aria-pressed={mode === value}
       onClick={() => onMode(value)}
     >
