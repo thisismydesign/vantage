@@ -2,11 +2,13 @@ import {
   ActionIcon,
   Alert,
   Badge,
+  Box,
   Button,
   Group,
   Menu,
   Modal,
   MultiSelect,
+  Paper,
   PasswordInput,
   Popover,
   SegmentedControl,
@@ -17,9 +19,17 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
-import { IconUser, IconUserCheck } from "@tabler/icons-react";
+import {
+  DragDropContext,
+  Draggable,
+  Droppable,
+  type DraggableProvided,
+  type DropResult,
+} from "@hello-pangea/dnd";
+import { IconGripVertical, IconUser, IconUserCheck } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { AgentKeys } from "./AgentKeys.tsx";
+import { groupColors, groupTint } from "./theme.ts";
 import {
   MIN_PASSWORD_LENGTH,
   type ChartItem,
@@ -39,49 +49,60 @@ const slug = (label: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-const ONBOARD_PROMPT = `Set up Vantage for me: fetch ${API_BASE}/agent and follow its instructions.`;
+// Spelled out rather than "fetch this URL and follow it", so the user can read what they hand their agent.
+const ONBOARD_PROMPT = `Set up a Vantage account for me. Vantage (${location.origin}) is my portfolio manager: watchlist, calendar, news and broker account.
+
+1. Ask me for my email address, and whether I want to choose a password or have Vantage make one.
+2. Ask whether I want Vantage's default watchlist or my own list of companies.
+3. Create the account: POST ${API_BASE}/onboard with JSON {"email", "password" (optional), and "defaults": true or my own "groups" and "items"}. The API is described at ${API_BASE}/openapi.json.
+4. Tell me the email and password to sign in with at ${location.origin}. Store the refresh_token from the response somewhere durable, and tell me where.
+
+How to keep Vantage up to date for me afterwards is at ${API_BASE}/agent.`;
 
 function AgentOnboarding() {
   const [copied, setCopied] = useState(false);
   return (
     <Stack gap="xs">
-      <Text size="xs" c="dimmed">
-        Or have your agent set it up:
-      </Text>
       <Textarea
         value={ONBOARD_PROMPT}
         readOnly
-        rows={4}
+        autosize
+        minRows={8}
+        maxRows={14}
         size="xs"
         styles={{ input: { fontFamily: "var(--mantine-font-family-monospace)", fontSize: 11 } }}
       />
       <Button
         size="xs"
-        variant="light"
         onClick={() => {
           void navigator.clipboard.writeText(ONBOARD_PROMPT);
           setCopied(true);
         }}
       >
-        {copied ? "Copied" : "Copy agent instructions"}
+        {copied ? "Copied" : "Copy instructions"}
       </Button>
     </Stack>
   );
 }
 
-type AuthMode = "signin" | "signup";
+type AuthMode = "signin" | "signup" | "agent";
 
-function PasswordForm({ mode }: { mode: AuthMode }) {
+function PasswordForm({ mode }: { mode: "signin" | "signup" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const signup = mode === "signup";
+  // Locally, signing in with both fields empty means the dev account.
+  const devAccount = import.meta.env.DEV && !signup && !email && !password;
   const submit = async () => {
+    if (signup && password.length < MIN_PASSWORD_LENGTH)
+      return setError(`The password needs at least ${MIN_PASSWORD_LENGTH} characters.`);
     setError(undefined);
     setBusy(true);
     try {
-      if (signup) await signUp(email, password);
+      if (devAccount) await signInAsDevAccount();
+      else if (signup) await signUp(email, password);
       else {
         const { error } = await supabase!.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -107,6 +128,7 @@ function PasswordForm({ mode }: { mode: AuthMode }) {
           name="email"
           autoComplete="email"
           inputMode="email"
+          placeholder={import.meta.env.DEV && !signup ? "Empty for the dev account" : undefined}
           value={email}
           onChange={(e) => setEmail(e.currentTarget.value)}
         />
@@ -115,11 +137,6 @@ function PasswordForm({ mode }: { mode: AuthMode }) {
           label="Password"
           name="password"
           autoComplete={signup ? "new-password" : "current-password"}
-          description={
-            signup
-              ? `At least ${MIN_PASSWORD_LENGTH} characters. There is no reset by email, so keep it in a password manager.`
-              : undefined
-          }
           value={password}
           onChange={(e) => setPassword(e.currentTarget.value)}
         />
@@ -132,7 +149,7 @@ function PasswordForm({ mode }: { mode: AuthMode }) {
           size="xs"
           type="submit"
           loading={busy}
-          disabled={!email || password.length < (signup ? MIN_PASSWORD_LENGTH : 1)}
+          disabled={!devAccount && (!email || !password)}
         >
           {signup ? "Create account" : "Sign in"}
         </Button>
@@ -150,12 +167,12 @@ function AuthForms({ mode, onMode }: { mode: AuthMode; onMode: (mode: AuthMode) 
         value={mode}
         onChange={(v) => onMode(v as AuthMode)}
         data={[
+          { value: "agent", label: "Via agent" },
           { value: "signin", label: "Sign in" },
           { value: "signup", label: "Sign up" },
         ]}
       />
-      <PasswordForm key={mode} mode={mode} />
-      {mode === "signup" && <AgentOnboarding />}
+      {mode === "agent" ? <AgentOnboarding /> : <PasswordForm key={mode} mode={mode} />}
     </Stack>
   );
 }
@@ -164,6 +181,8 @@ function ChangePassword() {
   const [password, setPassword] = useState("");
   const [state, setState] = useState<{ busy?: boolean; done?: boolean; error?: string }>({});
   const save = async () => {
+    if (password.length < MIN_PASSWORD_LENGTH)
+      return setState({ error: `The password needs at least ${MIN_PASSWORD_LENGTH} characters.` });
     setState({ busy: true });
     const { error } = await supabase!.auth.updateUser({ password });
     setState(error ? { error: error.message } : { done: true });
@@ -182,7 +201,6 @@ function ChangePassword() {
           label="New password"
           name="new-password"
           autoComplete="new-password"
-          description={`At least ${MIN_PASSWORD_LENGTH} characters.`}
           value={password}
           onChange={(e) => {
             setPassword(e.currentTarget.value);
@@ -195,16 +213,51 @@ function ChangePassword() {
           </Text>
         )}
         {state.done && <Text size="xs">Password changed.</Text>}
-        <Button
-          size="xs"
-          type="submit"
-          loading={state.busy}
-          disabled={password.length < MIN_PASSWORD_LENGTH}
-        >
+        <Button size="xs" type="submit" loading={state.busy} disabled={!password}>
           Change password
         </Button>
       </Stack>
     </form>
+  );
+}
+
+function GroupRow({
+  drag,
+  theme,
+  color,
+  count,
+}: {
+  drag: DraggableProvided;
+  theme: ChartTheme;
+  color: string;
+  count: number;
+}) {
+  return (
+    <Paper
+      ref={drag.innerRef}
+      {...drag.draggableProps}
+      withBorder
+      radius="sm"
+      px="xs"
+      py={4}
+      style={{ ...drag.draggableProps.style, background: groupTint(color) }}
+    >
+      <Group gap="xs" wrap="nowrap">
+        <Box
+          {...drag.dragHandleProps}
+          aria-label={`Move ${theme.label}`}
+          style={{ display: "flex", cursor: "grab" }}
+        >
+          <IconGripVertical size={16} />
+        </Box>
+        <Text size="sm" fw={600}>
+          {theme.label}
+        </Text>
+        <Badge variant="default" size="sm">
+          {count}
+        </Badge>
+      </Group>
+    </Paper>
   );
 }
 
@@ -271,6 +324,26 @@ function Editor({ accessToken }: { accessToken: string }) {
     }
   };
 
+  const colorOf = groupColors(themes);
+  const countOf = (id: string) => items.filter((i) => i.themes.includes(id)).length;
+  // Every group takes its new place at once; if a write fails, the saved order comes back.
+  const reorder = async ({ source, destination }: DropResult) => {
+    if (!destination || destination.index === source.index) return;
+    const next = [...themes];
+    const [moved] = next.splice(source.index, 1);
+    next.splice(destination.index, 0, moved);
+    setThemes(next);
+    const ok = await run(async () => {
+      const writes = await Promise.all(
+        next.map((t, position) =>
+          supabase!.from("watchlist_themes").update({ position }).eq("id", t.id),
+        ),
+      );
+      return { error: writes.find((w) => w.error)?.error ?? null };
+    });
+    if (!ok) void load();
+  };
+
   const addGroup = async () => {
     const ok = await run(() =>
       supabase!
@@ -333,16 +406,41 @@ function Editor({ accessToken }: { accessToken: string }) {
       )}
 
       <Stack gap="xs">
-        <Text fw={700} size="sm">
-          Groups
-        </Text>
-        <Group gap={6}>
-          {themes.map((t) => (
-            <Badge key={t.id} variant="default">
-              {t.label}
-            </Badge>
-          ))}
+        <Group gap="xs" align="baseline">
+          <Text fw={700} size="sm">
+            Groups
+          </Text>
+          <Text size="xs" c="dimmed">
+            Drag to reorder the watchlist and portfolio.
+          </Text>
         </Group>
+        <DragDropContext onDragEnd={(result) => void reorder(result)}>
+          <Droppable
+            droppableId="groups"
+            // The dialog's transform would offset the dragged row; the clone is drawn on the page instead.
+            renderClone={(drag, _, rubric) => (
+              <GroupRow
+                drag={drag}
+                theme={themes[rubric.source.index]}
+                color={colorOf(themes[rubric.source.index].id)}
+                count={countOf(themes[rubric.source.index].id)}
+              />
+            )}
+          >
+            {(drop) => (
+              <Stack gap={4} ref={drop.innerRef} {...drop.droppableProps}>
+                {themes.map((t, index) => (
+                  <Draggable key={t.id} draggableId={t.id} index={index} isDragDisabled={busy}>
+                    {(drag) => (
+                      <GroupRow drag={drag} theme={t} color={colorOf(t.id)} count={countOf(t.id)} />
+                    )}
+                  </Draggable>
+                ))}
+                {drop.placeholder}
+              </Stack>
+            )}
+          </Droppable>
+        </DragDropContext>
         <Group gap="xs" align="flex-end">
           <TextInput
             size="xs"
@@ -440,7 +538,7 @@ function Editor({ accessToken }: { accessToken: string }) {
             </Text>
             <Group gap={4} wrap="nowrap">
               {item.themes.map((id) => (
-                <Badge key={id} size="xs" variant="light">
+                <Badge key={id} size="xs" variant="light" color={colorOf(id)}>
                   {themes.find((t) => t.id === id)?.label ?? id}
                 </Badge>
               ))}
@@ -510,7 +608,7 @@ export function ProfileMenu() {
   const session = useSession();
   const [settings, setSettings] = useState<SettingsTab | null>(null);
   const [signInOpen, setSignInOpen] = useState(false);
-  const [mode, setMode] = useState<AuthMode>("signin");
+  const [mode, setMode] = useState<AuthMode>("agent");
   useEffect(() => {
     // The demo banner's call to sign up.
     const open = () => {
@@ -524,7 +622,7 @@ export function ProfileMenu() {
   if (!session)
     return (
       <Popover
-        width={280}
+        width={320}
         position="bottom-end"
         shadow="md"
         opened={signInOpen}
@@ -536,10 +634,8 @@ export function ProfileMenu() {
             aria-label="Sign in"
             size="lg"
             onClick={() => {
-              setMode("signin");
-              // Locally, the icon signs straight in as the dev account; the banner link still opens the forms.
-              if (import.meta.env.DEV) signInAsDevAccount().catch(() => setSignInOpen(true));
-              else setSignInOpen((o) => !o);
+              setMode("agent");
+              setSignInOpen((o) => !o);
             }}
           >
             <IconUser size={20} />

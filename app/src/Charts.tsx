@@ -2,12 +2,10 @@ import { AreaChart } from "@mantine/charts";
 import {
   ActionIcon,
   Alert,
-  Badge,
   Box,
   Button,
   Card,
   Code,
-  Collapse,
   Divider,
   Group,
   Loader,
@@ -23,7 +21,7 @@ import {
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { IconAdjustmentsHorizontal, IconChevronDown, IconChevronRight } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal } from "@tabler/icons-react";
 import type {
   BaseCurrency,
   ChartItem,
@@ -36,7 +34,8 @@ import type {
 import { closeTime, RANGE_SOURCE, windowStart, type Bars } from "@shared/ranges.ts";
 import { displayDateTime, signedPct } from "./lib/format.ts";
 import { useLocalState } from "./lib/useLocalState.ts";
-import { TONE } from "./theme.ts";
+import { GroupSection } from "./components/GroupSection.tsx";
+import { groupColors, TONE } from "./theme.ts";
 import {
   dateTicks,
   groupMiddles,
@@ -747,6 +746,7 @@ export function Charts({ header = true }: { header?: boolean }) {
     return out;
   }, [grouped, shown, themes, itemByTicker]);
 
+  const colorOf = useMemo(() => groupColors(themes), [themes]);
   const allShut = groups.length > 0 && groups.every((g) => collapsedThemes.includes(g.id));
   const mobile = useMediaQuery("(max-width: 48em)");
 
@@ -955,61 +955,44 @@ export function Charts({ header = true }: { header?: boolean }) {
         groups.map((g) => {
           const shut = collapsedThemes.includes(g.id);
           return (
-            <Paper key={g.id} withBorder radius="md" p="sm">
-              {/* The whole heading toggles the group; the chevron shows it can. */}
-              <Group
-                gap="sm"
-                wrap="nowrap"
-                mb={shut ? 0 : "sm"}
-                style={{ cursor: "pointer", userSelect: "none" }}
-                onClick={() => toggle(collapsedThemes, setCollapsedThemes, g.id)}
-              >
-                <ActionIcon
-                  variant="default"
-                  size="md"
-                  aria-label={shut ? `Expand ${g.label}` : `Collapse ${g.label}`}
+            <GroupSection
+              key={g.id}
+              label={g.label}
+              color={colorOf(g.id)}
+              count={g.tickers.length}
+              open={!shut}
+              onToggle={() => toggle(collapsedThemes, setCollapsedThemes, g.id)}
+            >
+              {list ? (
+                <WatchTable
+                  tickers={g.tickers}
+                  itemByTicker={itemByTicker}
+                  quotes={quotes}
+                  held={held}
+                />
+              ) : (
+                <SimpleGrid
+                  cols={compact ? { base: 1, sm: 2, md: 3, lg: 4, xl: 5 } : 1}
+                  spacing="xs"
+                  verticalSpacing="xs"
                 >
-                  {shut ? <IconChevronRight size={18} /> : <IconChevronDown size={18} />}
-                </ActionIcon>
-                <Text fw={700} fz="md">
-                  {g.label}
-                </Text>
-                <Badge variant="default" size="md">
-                  {g.tickers.length}
-                </Badge>
-              </Group>
-              <Collapse expanded={!shut}>
-                {list ? (
-                  <WatchTable
-                    tickers={g.tickers}
-                    itemByTicker={itemByTicker}
-                    quotes={quotes}
-                    held={held}
-                  />
-                ) : (
-                  <SimpleGrid
-                    cols={compact ? { base: 1, sm: 2, md: 3, lg: 4, xl: 5 } : 1}
-                    spacing="xs"
-                    verticalSpacing="xs"
-                  >
-                    {g.tickers.map((t) => (
-                      <TickerChart
-                        key={t}
-                        ticker={t}
-                        item={itemByTicker.get(t)}
-                        session={isIntraday ? asSession(live.series[t]) : undefined}
-                        asOf={live.asOf}
-                        compact={compact}
-                        range={activeRange.value}
-                        saved={savedPoints.get(t) ?? EMPTY}
-                        base={base}
-                        gaps={gaps}
-                      />
-                    ))}
-                  </SimpleGrid>
-                )}
-              </Collapse>
-            </Paper>
+                  {g.tickers.map((t) => (
+                    <TickerChart
+                      key={t}
+                      ticker={t}
+                      item={itemByTicker.get(t)}
+                      session={isIntraday ? asSession(live.series[t]) : undefined}
+                      asOf={live.asOf}
+                      compact={compact}
+                      range={activeRange.value}
+                      saved={savedPoints.get(t) ?? EMPTY}
+                      base={base}
+                      gaps={gaps}
+                    />
+                  ))}
+                </SimpleGrid>
+              )}
+            </GroupSection>
           );
         })}
 

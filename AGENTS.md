@@ -25,7 +25,7 @@ tests/                   node:test unit specs
 ```bash
 mise install && cp .env.example .env && pnpm install && supabase link
 supabase start && node supabase/seed/dev-account.ts  # local stack (needs Docker) and the dev account
-pnpm run dev                                   # local stack; the account icon signs in as dev@vantage.test
+pnpm run dev                                   # local stack; Sign in with empty fields signs in as dev@vantage.test
 supabase stop && supabase start                # after a function first imports a shared/ file: the stack mounts them at start
 pnpm run db:reset                              # re-apply migrations and seeds, including the dev account
 pnpm run lint && pnpm run typecheck && pnpm run test

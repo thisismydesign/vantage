@@ -1,4 +1,4 @@
-import { createTheme, type CSSVariablesResolver } from "@mantine/core";
+import { alpha, createTheme, type CSSVariablesResolver, type MantineTheme } from "@mantine/core";
 
 export const theme = createTheme({
   primaryColor: "indigo",
@@ -47,3 +47,24 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     "--mantine-color-dimmed": "var(--mantine-color-dark-1)",
   },
 });
+
+// One per group, by its place in the user's order, so a group looks the same on every page. Untagged and unclassified are gray.
+const GROUP_COLORS = ["indigo", "teal", "grape", "orange", "cyan", "lime", "pink"] as const;
+
+export function groupColors(groups: { id: string }[]): (id: string) => string {
+  const index = new Map(groups.map((g, i) => [g.id, i]));
+  return (id) => {
+    const i = index.get(id);
+    return i === undefined ? "gray" : GROUP_COLORS[i % GROUP_COLORS.length];
+  };
+}
+
+/** For marks such as chart slices: well above the group's wash, below full strength, over light or dark. */
+export const groupSolid = (theme: MantineTheme, color: string) =>
+  alpha(theme.colors[color][6], 0.6);
+
+/** A faint wash of the colour over the page background, for a group's surface; opaque, so a dragged row hides what it passes. */
+export function groupTint(color: string) {
+  const wash = `color-mix(in srgb, var(--mantine-color-${color}-6) 9%, transparent)`;
+  return `linear-gradient(${wash}, ${wash}), var(--mantine-color-body)`;
+}

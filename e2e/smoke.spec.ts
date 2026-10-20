@@ -21,7 +21,9 @@ test("shows the demo watchlist with charts", async ({ page }) => {
   await expect(page.getByText("You are looking at a demo account.")).toBeVisible();
   await page.getByRole("button", { name: "Sign up to customize." }).click();
   await expect(page.getByRole("button", { name: "Create account" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Copy agent instructions" })).toBeVisible();
+  await page.getByText("Via agent", { exact: true }).click();
+  await expect(page.getByText(/POST .*\/onboard/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy instructions" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^(Collapse|Expand) / }).first()).toBeVisible();
   await expect(page.locator("svg.recharts-surface").first()).toBeVisible({ timeout: 60_000 });
 });
@@ -93,7 +95,7 @@ test("limits each user's lookups per day", async ({ request }) => {
   test.skip(!!process.env.E2E_BASE_URL || !canSignIn, "local stack only");
   const session = await testSession();
   const caller = session.user.id;
-  const rows = Array.from({ length: 300 }, () => ({ caller, route: "lookup" }));
+  const rows = Array.from({ length: 100 }, () => ({ caller, route: "lookup" }));
   await admin().from("throttle").insert(rows);
   try {
     const headers = { apikey: ANON_KEY ?? "", Authorization: `Bearer ${session.access_token}` };

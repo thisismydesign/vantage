@@ -1,6 +1,5 @@
 import { DonutChart } from "@mantine/charts";
 import {
-  ActionIcon,
   Alert,
   Badge,
   Button,
@@ -11,30 +10,21 @@ import {
   Table,
   Text,
   Title,
+  useMantineTheme,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
 import type { ChartItem, ChartTheme } from "@shared/api.ts";
+import { GroupSection } from "./components/GroupSection.tsx";
 import { Stat } from "./components/Stat.tsx";
 import { NavHistory } from "./NavHistory.tsx";
 import { displayDate, displayDateTime, pct, signedPct } from "./lib/format.ts";
 import { usePrivateMoney } from "./lib/privacy.tsx";
-import { TONE } from "./theme.ts";
+import { groupColors, groupSolid, TONE } from "./theme.ts";
 import type { Position } from "./lib/types.ts";
 import type { Built, NavRow } from "./lib/broker.ts";
 
 const UNCLASSIFIED = "unclassified";
-const THEME_COLORS = [
-  "indigo.6",
-  "teal.6",
-  "grape.6",
-  "orange.6",
-  "cyan.6",
-  "lime.6",
-  "pink.6",
-  "gray.6",
-];
 
 function changeTone(changePct: number | null) {
   if (changePct === null) return undefined;
@@ -74,7 +64,6 @@ function groupTotals(positions: Position[], changes: Record<string, number | nul
 function HoldingsTable({
   positions,
   total,
-  collapsed,
   base,
   changes,
   names,
@@ -82,7 +71,6 @@ function HoldingsTable({
 }: {
   positions: Position[];
   total: number;
-  collapsed: boolean;
   base: string;
   changes: Record<string, number | null>;
   names: Map<string, string>;
@@ -123,56 +111,54 @@ function HoldingsTable({
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
-        {collapsed
-          ? null
-          : positions.map((p) => {
-              const change = changes[p.ticker] ?? null;
-              const cost = p.costBasisBase ?? null;
-              const pnl = cost === null || p.valueBase === null ? null : p.valueBase - cost;
-              const pnlPct = cost ? (p.valueBase ?? 0) / cost - 1 : null;
-              return (
-                <Table.Tr key={`${p.source}:${p.ticker}`}>
-                  <Table.Td>
-                    <Group gap={6} wrap="nowrap">
-                      <Text fw={600} fz={compact ? "xs" : undefined}>
-                        {p.ticker}
-                      </Text>
-                      {!compact && (
-                        <Text size="xs" c="dimmed" truncate>
-                          {names.get(p.ticker) ?? p.name}
-                        </Text>
-                      )}
-                    </Group>
-                  </Table.Td>
-                  <Table.Td ta="right">
-                    {p.valueBase === null ? "—" : money(p.valueBase, base)}
-                  </Table.Td>
-                  <Table.Td ta="right">
-                    {p.valueBase === null || total === 0 ? "—" : pct(p.valueBase / total)}
-                  </Table.Td>
-                  <Table.Td ta="right" c={changeTone(change)}>
-                    {change != null ? signedPct(change) : "—"}
-                  </Table.Td>
-                  <Table.Td ta="right" c={changeTone(pnl)}>
-                    {pnl === null ? "—" : money(pnl, base)}
-                  </Table.Td>
-                  <Table.Td ta="right" c={changeTone(pnlPct)}>
-                    {pnlPct === null ? "—" : signedPct(pnlPct)}
-                  </Table.Td>
+        {positions.map((p) => {
+          const change = changes[p.ticker] ?? null;
+          const cost = p.costBasisBase ?? null;
+          const pnl = cost === null || p.valueBase === null ? null : p.valueBase - cost;
+          const pnlPct = cost ? (p.valueBase ?? 0) / cost - 1 : null;
+          return (
+            <Table.Tr key={`${p.source}:${p.ticker}`}>
+              <Table.Td>
+                <Group gap={6} wrap="nowrap">
+                  <Text fw={600} fz={compact ? "xs" : undefined}>
+                    {p.ticker}
+                  </Text>
                   {!compact && (
-                    <Table.Td>
-                      <Badge
-                        size="xs"
-                        variant="light"
-                        color={p.priceSource === "quote" ? TONE.info : TONE.neutral}
-                      >
-                        {p.priceSource === "quote" ? "live" : "broker"}
-                      </Badge>
-                    </Table.Td>
+                    <Text size="xs" c="dimmed" truncate>
+                      {names.get(p.ticker) ?? p.name}
+                    </Text>
                   )}
-                </Table.Tr>
-              );
-            })}
+                </Group>
+              </Table.Td>
+              <Table.Td ta="right">
+                {p.valueBase === null ? "—" : money(p.valueBase, base)}
+              </Table.Td>
+              <Table.Td ta="right">
+                {p.valueBase === null || total === 0 ? "—" : pct(p.valueBase / total)}
+              </Table.Td>
+              <Table.Td ta="right" c={changeTone(change)}>
+                {change != null ? signedPct(change) : "—"}
+              </Table.Td>
+              <Table.Td ta="right" c={changeTone(pnl)}>
+                {pnl === null ? "—" : money(pnl, base)}
+              </Table.Td>
+              <Table.Td ta="right" c={changeTone(pnlPct)}>
+                {pnlPct === null ? "—" : signedPct(pnlPct)}
+              </Table.Td>
+              {!compact && (
+                <Table.Td>
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color={p.priceSource === "quote" ? TONE.info : TONE.neutral}
+                  >
+                    {p.priceSource === "quote" ? "live" : "broker"}
+                  </Badge>
+                </Table.Td>
+              )}
+            </Table.Tr>
+          );
+        })}
       </Table.Tbody>
       <Table.Tfoot>
         <Table.Tr fw={600}>
@@ -220,21 +206,32 @@ export function PortfolioPage({
   const names = new Map(items.map((i) => [i.ticker, i.name]));
   const themeOf = new Map(items.map((i) => [i.ticker, i.themes]));
 
-  const groups = new Map<string, Position[]>();
+  const byGroup = new Map<string, Position[]>();
   for (const p of portfolio.positions) {
     const primary = themeOf.get(p.ticker)?.[0] ?? UNCLASSIFIED;
-    groups.set(primary, [...(groups.get(primary) ?? []), p]);
+    byGroup.set(primary, [...(byGroup.get(primary) ?? []), p]);
   }
-  const donut = portfolio.totals.byTheme.map((t, i) => ({
+  // The watchlist's order, so a group sits in the same place on both pages; anything unknown goes last.
+  const order = [...themes.map((t) => t.id), ...byGroup.keys()];
+  const groups = [...new Set(order)]
+    .filter((id) => byGroup.has(id))
+    .map((id) => ({
+      id,
+      label: themes.find((t) => t.id === id)?.label ?? "Unclassified",
+      positions: byGroup.get(id)!,
+    }));
+  const colorOf = groupColors(themes);
+  const mantine = useMantineTheme();
+  const donut = portfolio.totals.byTheme.map((t) => ({
     name: t.label,
     value: Math.round(t.value),
-    color: THEME_COLORS[i % THEME_COLORS.length],
+    color: groupSolid(mantine, colorOf(t.theme)),
   }));
 
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const toggle = (id: string) =>
     setCollapsed(collapsed.includes(id) ? collapsed.filter((t) => t !== id) : [...collapsed, id]);
-  const allFolded = [...groups.keys()].every((t) => collapsed.includes(t));
+  const allFolded = groups.every((g) => collapsed.includes(g.id));
 
   const cash = portfolio.cash;
   const grossLeverage = portfolio.totals.netValue ? total / portfolio.totals.netValue : 0;
@@ -293,10 +290,10 @@ export function PortfolioPage({
           <Group align="flex-start" justify="space-between" wrap="wrap">
             <DonutChart data={donut} size={180} thickness={26} withTooltip />
             <Stack gap={4} style={{ flex: 1, minWidth: 260 }}>
-              {portfolio.totals.byTheme.map((t, i) => (
+              {portfolio.totals.byTheme.map((t) => (
                 <Group key={t.theme} justify="space-between">
                   <Group gap={8}>
-                    <Badge color={THEME_COLORS[i % THEME_COLORS.length].split(".")[0]} size="xs">
+                    <Badge color={groupSolid(mantine, colorOf(t.theme))} size="xs">
                       {" "}
                     </Badge>
                     <Text size="sm">{t.label}</Text>
@@ -316,46 +313,51 @@ export function PortfolioPage({
         <Button
           variant="default"
           size="xs"
-          onClick={() => setCollapsed(allFolded ? [] : [...groups.keys()])}
+          onClick={() => setCollapsed(allFolded ? [] : groups.map((g) => g.id))}
         >
           {allFolded ? "Expand all" : "Collapse all"}
         </Button>
       </Group>
 
-      {[...groups.entries()].map(([themeId, positions]) => {
-        const label = themes.find((t) => t.id === themeId)?.label ?? "Unclassified";
-        const folded = collapsed.includes(themeId);
+      {groups.map((g) => {
+        const sum = groupTotals(g.positions, changes);
         return (
-          <Stack key={themeId} gap={4}>
-            <Group
-              gap="sm"
-              wrap="nowrap"
-              style={{ cursor: "pointer", userSelect: "none" }}
-              onClick={() => toggle(themeId)}
-            >
-              <ActionIcon
-                variant="default"
-                size="md"
-                aria-label={folded ? `Expand ${label}` : `Collapse ${label}`}
-              >
-                {folded ? <IconChevronRight size={18} /> : <IconChevronDown size={18} />}
-              </ActionIcon>
-              <Text fw={700} fz="md">
-                {label}
-              </Text>
-            </Group>
+          <GroupSection
+            key={g.id}
+            label={g.label}
+            color={colorOf(g.id)}
+            count={g.positions.length}
+            open={!collapsed.includes(g.id)}
+            onToggle={() => toggle(g.id)}
+            summary={
+              <Group gap="sm" wrap="nowrap">
+                <Text size="sm" fw={600}>
+                  {money(sum.value, base)}
+                </Text>
+                {total !== 0 && (
+                  <Text size="sm" c="dimmed">
+                    {pct(sum.value / total)}
+                  </Text>
+                )}
+                {sum.day !== null && (
+                  <Text size="sm" c={changeTone(sum.day)}>
+                    {signedPct(sum.day)}
+                  </Text>
+                )}
+              </Group>
+            }
+          >
             <Table.ScrollContainer minWidth={compact ? 320 : 820}>
               <HoldingsTable
-                positions={positions}
+                positions={g.positions}
                 total={total}
-                collapsed={folded}
                 base={base}
                 changes={changes}
                 names={names}
                 compact={compact}
               />
             </Table.ScrollContainer>
-          </Stack>
+          </GroupSection>
         );
       })}
 

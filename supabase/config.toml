@@ -244,12 +244,6 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Custom templates need a custom SMTP sender on the free tier ([auth.email.smtp]).
-# Re-enable once that is configured.
-# [auth.email.template.magic_link]
-# subject = "Sign in to Vantage"
-# content_path = "./supabase/templates/magic-link.html"
-
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

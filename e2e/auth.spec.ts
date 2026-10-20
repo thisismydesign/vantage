@@ -31,6 +31,8 @@ test("signs up in the browser, then signs back in with the password", async ({ p
   try {
     await page.goto("/");
     await page.getByRole("button", { name: "Sign up to customize." }).click();
+    await fillAndSubmit(page, email, "short", "Create account");
+    await expect(page.getByText("The password needs at least 8 characters.")).toBeVisible();
     await fillAndSubmit(page, email, secret, "Create account");
     await expect(page.getByText("You are looking at a demo account.")).toBeHidden();
     await page.getByRole("button", { name: "Account", exact: true }).click();
