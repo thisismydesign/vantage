@@ -4,8 +4,12 @@ import type { LookupResponse, SymbolMatch } from "../../../shared/api.ts";
 import { db } from "../_shared/db.ts";
 import { CORS, json } from "../_shared/http.ts";
 import { isChartRange, prices } from "../_shared/prices.ts";
+import { DAY_MS, throttled } from "../_shared/throttle.ts";
 import { loadList } from "../_shared/watchlist.ts";
 import { resolveCaller } from "./auth.ts";
+
+// Enough to set up and keep a large watchlist; not enough to use the function as a search proxy.
+const LOOKUP_LIMIT = { max: 300, perMs: DAY_MS };
 
 async function searchSymbols(query: string): Promise<SymbolMatch[]> {
   const url = new URL("https://query2.finance.yahoo.com/v1/finance/search");
@@ -45,7 +49,14 @@ Deno.serve(async (request) => {
     if (caller.via === "none") return json({ error: "Sign in first." }, 401);
     const url = new URL(request.url);
     const query = url.searchParams.get("lookup");
-    if (query) return json({ results: await searchSymbols(query) } satisfies LookupResponse);
+    if (query) {
+      if (await throttled(caller.owner, "lookup", LOOKUP_LIMIT))
+        return json(
+          { error: `That is ${LOOKUP_LIMIT.max} lookups in the last day. Try again later.` },
+          429,
+        );
+      return json({ results: await searchSymbols(query) } satisfies LookupResponse);
+    }
     const range = url.searchParams.get("range") ?? "1d";
     if (!isChartRange(range)) return json({ error: "Unsupported range." }, 400);
     return json(await prices(range, await loadList(db, caller.owner)));

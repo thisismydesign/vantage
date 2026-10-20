@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   MIN_PASSWORD_LENGTH,
+  ONBOARD_MAX,
   type OnboardRequest,
   type OnboardResponse,
 } from "../../../shared/api.ts";
@@ -10,6 +11,7 @@ import { KEY_PREFIX, sha256Hex } from "../../../shared/keys.ts";
 import { db, SUPABASE_URL } from "../_shared/db.ts";
 import { CORS, json, text } from "../_shared/http.ts";
 import { isChartRange, prices } from "../_shared/prices.ts";
+import { HOUR_MS, throttled } from "../_shared/throttle.ts";
 import { addGroup, addItem, loadList, publicList, seedDefaults } from "../_shared/watchlist.ts";
 import { agentInstructions, endpoints, openapi, type Endpoints } from "./docs.ts";
 
@@ -21,21 +23,6 @@ const clientIp = (request: Request) =>
   request.headers.get("cf-connecting-ip") ??
   request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
   "unknown";
-
-async function throttled(ip: string, route: string, perHour: number) {
-  const since = new Date(Date.now() - 3_600_000).toISOString();
-  // Only the last hour counts, so older rows go; the table stays an hour long.
-  await db.from("throttle").delete().lt("at", since);
-  const { count } = await db
-    .from("throttle")
-    .select("id", { count: "exact", head: true })
-    .eq("ip", ip)
-    .eq("route", route)
-    .gte("at", since);
-  if ((count ?? 0) >= perHour) return true;
-  await db.from("throttle").insert({ ip, route });
-  return false;
-}
 
 async function mintSession(email: string) {
   const link = await db.auth.admin.generateLink({ type: "magiclink", email });
@@ -51,10 +38,10 @@ async function mintSession(email: string) {
   return { access_token, refresh_token, expires_at };
 }
 
-const TOKEN_LIMIT = { perHour: 60 };
+const TOKEN_LIMIT = { max: 60, perMs: HOUR_MS };
 
 async function exchangeAgentKey(request: Request, api: Endpoints, ip: string) {
-  if (await throttled(ip, "token", TOKEN_LIMIT.perHour))
+  if (await throttled(ip, "token", TOKEN_LIMIT))
     return json({ error: "Too many attempts from this address. Try again in an hour." }, 429);
   const key = (request.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
   if (!key.startsWith(KEY_PREFIX))
@@ -83,7 +70,7 @@ const generatedPassword = () =>
     .replace(/\//g, "_");
 
 // A few accounts an hour per address suffices for a person and their agent, and starves anyone flooding the user table.
-const ONBOARD_LIMIT = { perHour: 5 };
+const ONBOARD_LIMIT = { max: 5, perMs: HOUR_MS };
 
 // New accounts only: an existing email never yields a session to an anonymous caller.
 async function onboard(body: Partial<OnboardRequest>, api: Endpoints, ip: string) {
@@ -93,7 +80,16 @@ async function onboard(body: Partial<OnboardRequest>, api: Endpoints, ip: string
   const chosen = body.password;
   if (chosen !== undefined && (typeof chosen !== "string" || chosen.length < MIN_PASSWORD_LENGTH))
     return json({ error: `The password needs at least ${MIN_PASSWORD_LENGTH} characters.` }, 400);
-  if (await throttled(ip, "onboard", ONBOARD_LIMIT.perHour))
+  // Each item without a symbol costs a Yahoo search.
+  if (
+    (body.groups?.length ?? 0) > ONBOARD_MAX.groups ||
+    (body.items?.length ?? 0) > ONBOARD_MAX.items
+  )
+    return json(
+      { error: `At most ${ONBOARD_MAX.groups} groups and ${ONBOARD_MAX.items} items.` },
+      400,
+    );
+  if (await throttled(ip, "onboard", ONBOARD_LIMIT))
     return json({ error: "Too many sign-ups from this address. Try again in an hour." }, 429);
   const password = chosen ?? generatedPassword();
   const { data: created, error } = await db.auth.admin.createUser({
@@ -216,7 +212,8 @@ async function restOpenapi(api: Endpoints) {
 }
 
 // Signed out, the app never refreshes on its own; a page view costs one to three requests.
-const SIGNED_OUT_LIMIT = { perHour: 60, symbols: 25 };
+const SIGNED_OUT_LIMIT = { max: 60, perMs: HOUR_MS };
+const SIGNED_OUT_SYMBOLS = 25;
 const SYMBOL = /^[A-Za-z0-9.^=-]{1,20}$/;
 
 /** A bare list for symbols a signed-out caller names; each prices under its own symbol. */
@@ -272,16 +269,16 @@ Deno.serve(async (request) => {
     ];
     if (
       !symbols.length ||
-      symbols.length > SIGNED_OUT_LIMIT.symbols ||
+      symbols.length > SIGNED_OUT_SYMBOLS ||
       !symbols.every((s) => SYMBOL.test(s))
     )
       return json(
         {
-          error: `Name up to ${SIGNED_OUT_LIMIT.symbols} symbols; a signed-in watchlist is priced at ${functions}/watchlist.`,
+          error: `Name up to ${SIGNED_OUT_SYMBOLS} symbols; a signed-in watchlist is priced at ${functions}/watchlist.`,
         },
         400,
       );
-    if (await throttled(clientIp(request), "signed-out", SIGNED_OUT_LIMIT.perHour))
+    if (await throttled(clientIp(request), "signed-out", SIGNED_OUT_LIMIT))
       return json({ error: "Too many requests from this address. Try again later." }, 429);
     return json(await prices(range, symbolList(symbols)));
   } catch (e) {

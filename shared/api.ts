@@ -67,6 +67,7 @@ export type LookupResponse = { results: SymbolMatch[] };
 
 /** No reset by email, so `/onboard` asks for a strong one. */
 export const MIN_PASSWORD_LENGTH = 8;
+export const ONBOARD_MAX = { groups: 30, items: 100 };
 
 export type GroupInput = { id?: string; label: string };
 export type ItemInput = {

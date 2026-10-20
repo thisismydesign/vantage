@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { ANON_KEY, SUPABASE_URL, TEST_EMAIL, canSignIn, resetThrottle, signIn } from "./session.ts";
+import {
+  ANON_KEY,
+  SUPABASE_URL,
+  TEST_EMAIL,
+  admin,
+  canSignIn,
+  resetThrottle,
+  signIn,
+  testSession,
+} from "./session.ts";
 
 const API = `${SUPABASE_URL}/functions/v1/vantage`;
 const WATCHLIST = `${SUPABASE_URL}/functions/v1/watchlist`;
@@ -78,4 +87,19 @@ test("shows demo data on every page while signed out", async ({ page }) => {
   await expect(page.getByText("Nvidia ships first rack-scale systems")).toBeVisible();
   await page.goto("/#/tools/margin");
   await expect(page.getByText("Bet size (notional)")).toBeVisible();
+});
+
+test("limits each user's lookups per day", async ({ request }) => {
+  test.skip(!!process.env.E2E_BASE_URL || !canSignIn, "local stack only");
+  const session = await testSession();
+  const caller = session.user.id;
+  const rows = Array.from({ length: 300 }, () => ({ caller, route: "lookup" }));
+  await admin().from("throttle").insert(rows);
+  try {
+    const headers = { apikey: ANON_KEY ?? "", Authorization: `Bearer ${session.access_token}` };
+    const response = await request.get(`${WATCHLIST}?lookup=NVDA`, { headers });
+    expect(response.status()).toBe(429);
+  } finally {
+    await admin().from("throttle").delete().eq("caller", caller);
+  }
 });

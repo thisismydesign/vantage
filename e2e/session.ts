@@ -35,7 +35,7 @@ export async function testSession(): Promise<Session> {
   return otp.data.session;
 }
 
-const admin = (): Admin =>
+export const admin = (): Admin =>
   createClient(SUPABASE_URL!, SECRET_KEY!, { auth: { persistSession: false } });
 
 /** Local runs all come from one address; clear its budgets so repeated runs stay inside the rate limits. */

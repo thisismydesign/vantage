@@ -1,4 +1,4 @@
-import { MIN_PASSWORD_LENGTH } from "../../../shared/api.ts";
+import { MIN_PASSWORD_LENGTH, ONBOARD_MAX } from "../../../shared/api.ts";
 
 export type Endpoints = {
   /** Where the project's functions live. */
@@ -141,6 +141,7 @@ export function openapi(e: Endpoints) {
               description: "Groups, items and one price series per item; or lookup results",
             },
             "401": { description: "No session" },
+            "429": { description: "Too many lookups in the last day" },
           },
         },
       },
@@ -167,8 +168,8 @@ export function openapi(e: Endpoints) {
                       description:
                         "Seed Vantage's default groups and companies. Defaults to true when no groups or items are given, false otherwise.",
                     },
-                    groups: { type: "array", items: group },
-                    items: { type: "array", items: item },
+                    groups: { type: "array", items: group, maxItems: ONBOARD_MAX.groups },
+                    items: { type: "array", items: item, maxItems: ONBOARD_MAX.items },
                   },
                   required: ["email"],
                 },
@@ -198,7 +199,9 @@ export function openapi(e: Endpoints) {
                 },
               },
             },
-            "400": { description: "No valid email, or a password that is too short" },
+            "400": {
+              description: "No valid email, a password that is too short, or too long a list",
+            },
             "409": {
               description:
                 "The email already has an account: the user signs in on the site and can make an agent key there",
