@@ -104,8 +104,12 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
         <PortfolioPage
           built={built}
           history={broker.history}
-          items={live!.items}
-          themes={live!.themes}
+          snapshot={broker.snapshot!}
+          fills={broker.fills}
+          day={live!}
+          base={base}
+          cycle={cycle}
+          stale={charts.stale}
         />
       </>
     );

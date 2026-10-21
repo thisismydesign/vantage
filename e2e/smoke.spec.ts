@@ -82,8 +82,11 @@ test("keeps the watchlist function to signed-in callers", async ({ request }) =>
 });
 
 test("shows demo data on every page while signed out", async ({ page }) => {
-  await page.goto("/#/portfolio");
-  await expect(page.getByText("NVDA").first()).toBeVisible({ timeout: 60_000 });
+  await page.goto("/#/portfolio/account");
+  await expect(page.getByText("Net value")).toBeVisible({ timeout: 60_000 });
+  await page.goto("/#/portfolio/positions");
+  await expect(page.getByText("NVDA").first()).toBeVisible();
+  await expect(page.getByText("1D P&L")).toBeVisible();
   await page.goto("/#/trades");
   await expect(page.getByText("AAOI").first()).toBeVisible();
   await page.goto("/#/calendar");

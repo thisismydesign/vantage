@@ -24,7 +24,6 @@ import { useMediaQuery } from "@mantine/hooks";
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { IconAdjustmentsHorizontal } from "@tabler/icons-react";
 import type {
-  BaseCurrency,
   ChartItem,
   ChartRange,
   ChartTheme,
@@ -51,6 +50,7 @@ import { VantageBar } from "./Header.tsx";
 import { useSession } from "./lib/supabase.ts";
 import { WATCHLIST_CHANGED } from "./Watchlist.tsx";
 import { listQuotes, useHeld, WatchTable } from "./WatchTable.tsx";
+import type { Display, Period } from "./lib/positions.ts";
 
 const REFRESH_MS = 60_000;
 const DAY_MS = 86_400_000;
@@ -65,7 +65,7 @@ const TOOLBAR_ROW = {
 } as const;
 const INTRADAY_RANGES = new Set<string>(["1d", "24h", "1w"]);
 
-const RANGES: { value: "1d" | "24h" | "1w" | HistoryRange; label: string }[] = [
+export const RANGES: { value: Period; label: string }[] = [
   { value: "1d", label: "1D" },
   { value: "24h", label: "24H" },
   { value: "1w", label: "5D" },
@@ -76,7 +76,6 @@ const RANGES: { value: "1d" | "24h" | "1w" | HistoryRange; label: string }[] = [
   { value: "1y", label: "1Y" },
   { value: "5y", label: "5Y" },
 ];
-export type Display = BaseCurrency | "native";
 /** Closures at their true width, or folded so every bar gets an equal slot. */
 type Gaps = "real" | "short";
 

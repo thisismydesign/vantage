@@ -1,26 +1,13 @@
 import { Alert, Group, Loader, Tabs, Text } from "@mantine/core";
-import { useEffect, useState } from "react";
 import { useBrokerData } from "./lib/broker.ts";
 import { useSession } from "./lib/supabase.ts";
+import { useHashTab } from "./lib/useHashTab.ts";
 import { MarginSizing } from "./tools/MarginSizing.tsx";
 
 const TOOLS = [{ value: "margin", label: "Margin sizing" }] as const;
 type Tool = (typeof TOOLS)[number]["value"];
 const isTool = (v: string): v is Tool => TOOLS.some((t) => t.value === v);
-
-function useHashTool(): [Tool, (t: Tool) => void] {
-  const read = () => {
-    const sub = window.location.hash.replace(/^#\/?/, "").split("/")[1] ?? "";
-    return isTool(sub) ? sub : TOOLS[0].value;
-  };
-  const [tool, setTool] = useState<Tool>(read);
-  useEffect(() => {
-    const onChange = () => setTool(read());
-    window.addEventListener("hashchange", onChange);
-    return () => window.removeEventListener("hashchange", onChange);
-  }, []);
-  return [tool, (t) => (window.location.hash = `/tools/${t}`)];
-}
+const TOOL_KEYS = TOOLS.map((t) => t.value);
 
 function MarginSizingTool() {
   const session = useSession();
@@ -45,7 +32,7 @@ function MarginSizingTool() {
 }
 
 export function ToolsPage() {
-  const [tool, go] = useHashTool();
+  const [tool, go] = useHashTab("tools", TOOL_KEYS, TOOLS[0].value);
   return (
     <Tabs value={tool} onChange={(v) => v && isTool(v) && go(v)} variant="pills" radius="xl">
       <Tabs.List justify="center" mb="lg">
