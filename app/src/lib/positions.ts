@@ -40,10 +40,14 @@ export type PositionLine = {
   value: number | null;
   unrealized: number | null;
   unrealizedPct: number | null;
-  /** The price move over the period. */
+  /** The period's P&L over `invested`. */
   change: number | null;
   /** Counts the trades inside the period, so a position bought midway gains only from its purchase. */
   periodPnl: number | null;
+  /** The value held at the period's start plus what was put in during it. */
+  invested: number | null;
+  /** The first trade's day, when the period started with none held. */
+  openedAt: string | null;
   live: boolean;
 };
 
@@ -202,9 +206,10 @@ export function buildPositions({
 
     let change: number | null = null;
     let periodPnl: number | null = null;
+    let invested: number | null = null;
+    let openedAt: string | null = null;
     const start = live ? periodStart(ticker, period, session!, periodData, currency) : null;
     if (start && price != null) {
-      change = price / start.price - 1;
       const since = after(start);
       const inside = fills.filter(
         (f) =>
@@ -216,6 +221,7 @@ export function buildPositions({
       );
       let held = p.quantity;
       let cash = 0;
+      let added = 0;
       for (const f of inside) {
         held -= f.quantity;
         // The statement's rate is the trade day's; other currencies only have today's.
@@ -228,9 +234,20 @@ export function buildPositions({
           break;
         }
         cash += f.net_cash * r;
+        if (Math.sign(f.quantity) === Math.sign(p.quantity)) added += Math.abs(f.net_cash * r);
       }
       const pnl = price * p.quantity - held * start.price + cash;
-      periodPnl = Number.isFinite(pnl) ? pnl : null;
+      if (Number.isFinite(pnl)) {
+        periodPnl = pnl;
+        invested = Math.abs(held * start.price) + added;
+        change = invested ? pnl / invested : null;
+        // Fractional quantities leave float dust where a position was opened from nothing.
+        if (Math.abs(held) < 1e-9 && inside.length)
+          openedAt = inside
+            .map((f) => f.traded_at)
+            .sort()[0]
+            .slice(0, 10);
+      }
     }
 
     lines.push({
@@ -243,6 +260,8 @@ export function buildPositions({
       unrealizedPct: unrealized != null && cost ? unrealized / Math.abs(cost) : null,
       change,
       periodPnl,
+      invested,
+      openedAt,
       live,
     });
   }
@@ -257,15 +276,14 @@ export type PositionTotals = {
   periodPnl: number | null;
 };
 
-/** All lines MUST share one currency. The change is what today's holdings would have made held through the whole period, as each line's is. */
+/** All lines MUST share one currency. */
 export function totalsOf(lines: PositionLine[]): PositionTotals {
   let value = 0;
   let unrealized = 0;
   let cost = 0;
   let pnl = 0;
   let withPnl = 0;
-  let moved = 0;
-  let startValue = 0;
+  let invested = 0;
   for (const l of lines) {
     value += l.value ?? 0;
     if (l.unrealized != null && l.value != null) {
@@ -274,19 +292,15 @@ export function totalsOf(lines: PositionLine[]): PositionTotals {
     }
     if (l.periodPnl != null) {
       pnl += l.periodPnl;
+      invested += l.invested ?? 0;
       withPnl++;
-    }
-    if (l.change != null && l.value != null && l.change > -1) {
-      const start = l.value / (1 + l.change);
-      moved += l.value - start;
-      startValue += Math.abs(start);
     }
   }
   return {
     value,
     unrealized: cost ? unrealized : null,
     unrealizedPct: cost ? unrealized / cost : null,
-    change: startValue ? moved / startValue : null,
+    change: withPnl && invested ? pnl / invested : null,
     periodPnl: withPnl ? pnl : null,
   };
 }

@@ -6,6 +6,7 @@ import {
   LoadingOverlay,
   Popover,
   SegmentedControl,
+  SimpleGrid,
   Stack,
   Table,
   Text,
@@ -17,12 +18,14 @@ import {
   IconAdjustmentsHorizontal,
   IconChevronDown,
   IconChevronUp,
+  IconClockHour4,
   IconSelector,
 } from "@tabler/icons-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { BaseCurrency, ChartItem, ChartsResponse, ChartTheme } from "@shared/api.ts";
 import { RANGES } from "./Charts.tsx";
 import { GroupSection } from "./components/GroupSection.tsx";
+import { Stat } from "./components/Stat.tsx";
 import { useChartData } from "./lib/api.ts";
 import { resolver, type FillRow, type Snapshot } from "./lib/broker.ts";
 import { displayDate, displayDateTime, pct, signedPct } from "./lib/format.ts";
@@ -43,8 +46,29 @@ import { useSession } from "./lib/supabase.ts";
 import { useLocalState } from "./lib/useLocalState.ts";
 import { groupColors, TONE } from "./theme.ts";
 
-const tone = (n: number | null) =>
-  n == null || n === 0 ? undefined : n > 0 ? TONE.positive : TONE.negative;
+const toneName = (n: number | null) =>
+  n == null || n === 0 ? undefined : n > 0 ? ("positive" as const) : ("negative" as const);
+const tone = (n: number | null) => {
+  const name = toneName(n);
+  return name && TONE[name];
+};
+const TOUCH = { hover: true, focus: true, touch: true };
+const PartIcon = () => <IconClockHour4 size={12} style={{ verticalAlign: -1 }} />;
+
+/** Marks a period figure that covers only part of the period. */
+function Partial({ openedAt, children }: { openedAt: string | null; children: ReactNode }) {
+  if (!openedAt) return children;
+  return (
+    <Tooltip label={`Opened ${displayDate(openedAt)}; counts from then`} events={TOUCH}>
+      <Group component="span" gap={3} wrap="nowrap" justify="flex-end">
+        <Text span c="dimmed" fz="inherit" lh={1}>
+          <PartIcon />
+        </Text>
+        {children}
+      </Group>
+    </Tooltip>
+  );
+}
 const isPeriod = (v: string): v is Period => RANGES.some((r) => r.value === v);
 const apiRange = (period: Period) =>
   period === "1d" ? null : period === "24h" || period === "1w" ? period : "history";
@@ -199,10 +223,12 @@ function PositionsTable({
                 </Table.Td>
               )}
               <Table.Td ta="right" c={tone(l.change)}>
-                {pending(l.change) ?? percent(l.change)}
+                {pending(l.change) ?? <Partial openedAt={l.openedAt}>{percent(l.change)}</Partial>}
               </Table.Td>
               <Table.Td ta="right" c={tone(l.periodPnl)}>
-                {pending(l.periodPnl) ?? signed(l.periodPnl, l.currency)}
+                {pending(l.periodPnl) ?? (
+                  <Partial openedAt={l.openedAt}>{signed(l.periodPnl, l.currency)}</Partial>
+                )}
               </Table.Td>
             </Table.Tr>
           );
@@ -296,6 +322,8 @@ export function PositionsPage({
     totalLines.map((l) => [l.key, l.value == null || !grandTotal ? null : l.value / grandTotal]),
   );
   const totalOf = (keys: Set<string>) => totalsOf(totalLines.filter((l) => keys.has(l.key)));
+  const overall = totalsOf(totalLines);
+  const partial = lines.some((l) => l.openedAt);
 
   // Grouped as on the watchlist: a position shows in every group its ticker is in.
   const groups = useMemo(() => {
@@ -399,6 +427,25 @@ export function PositionsPage({
     </Box>
   );
 
+  const money = usePrivateMoney();
+  const signedMoney = (n: number) => `${n > 0 ? "+" : ""}${money(n, totalCurrency)}`;
+  const summary = (
+    <SimpleGrid cols={2} spacing="sm">
+      <Stat
+        label={`${periodLabel} P&L`}
+        value={overall.periodPnl == null ? (loading ? "…" : "—") : signedMoney(overall.periodPnl)}
+        tone={toneName(overall.periodPnl)}
+        hint={overall.change == null ? undefined : signedPct(overall.change)}
+      />
+      <Stat
+        label="Unrealized P&L"
+        value={overall.unrealized == null ? "—" : signedMoney(overall.unrealized)}
+        tone={toneName(overall.unrealized)}
+        hint={overall.unrealizedPct == null ? undefined : signedPct(overall.unrealizedPct)}
+      />
+    </SimpleGrid>
+  );
+
   return (
     <Stack gap="sm">
       {compact ? (
@@ -424,6 +471,7 @@ export function PositionsPage({
           </Group>
         </Group>
       )}
+      {summary}
       {grouped
         ? groups.map((g) => {
             const sum = totalOf(new Set(g.lines.map((l) => l.key)));
@@ -450,11 +498,17 @@ export function PositionsPage({
               </GroupSection>
             );
           })
-        : table(lines, totalsOf(totalLines))}
+        : table(lines, overall)}
       <Text size="xs" c="dimmed" ta="center">
         Positions from the {displayDate(snapshot.as_of)} statement · prices as of{" "}
         {displayDateTime(day.asOf)}
         {display === "native" ? ` · totals in ${base}` : ""}
+        {partial && (
+          <>
+            {" · "}
+            <PartIcon /> opened during the period, counts from then
+          </>
+        )}
       </Text>
     </Stack>
   );

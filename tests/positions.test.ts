@@ -117,6 +117,24 @@ test("shares bought inside the period gain only from their price, net of commiss
   near(line.periodPnl, 14 * 650 - 10 * 600 - 2_442);
 });
 
+test("returns are on what was held and put in, so a position opened midway counts from its purchase", () => {
+  const [added] = build([position({ quantity: 14 })], { fills: [fill({})] });
+  near(added.change, (14 * 650 - 10 * 600 - 2_442) / (10 * 600 + 2_442));
+  assert.equal(added.openedAt, null);
+  const [opened] = build([position({ quantity: 4 })], { fills: [fill({})] });
+  near(opened.periodPnl, 4 * 650 - 2_442);
+  near(opened.change, (4 * 650 - 2_442) / 2_442);
+  assert.equal(opened.openedAt, "2026-10-20");
+});
+
+test("sales inside the period don't add to what was put in", () => {
+  const [line] = build([position({ quantity: 6 })], {
+    fills: [fill({ quantity: -4, net_cash: 2_500 })],
+  });
+  near(line.periodPnl, 6 * 650 - 10 * 600 + 2_500);
+  near(line.change, (6 * 650 - 10 * 600 + 2_500) / (10 * 600));
+});
+
 test("a fill before the period's start is already in its opening quantity", () => {
   const [line] = build([position({})], {
     fills: [fill({ traded_at: "2026-10-19T16:00:00" })],
@@ -155,8 +173,8 @@ test("history periods start at the range's first bar and take fills after its da
     periodData: history,
     fills: [fill({ traded_at: "2026-09-20T12:00:00" }), fill({})],
   });
-  near(line.change, 650 / 500 - 1);
   near(line.periodPnl, 14 * 650 - 10 * 500 - 2_442);
+  near(line.change, (14 * 650 - 10 * 500 - 2_442) / (10 * 500 + 2_442));
 });
 
 test("without the period's prices the move stays unknown", () => {
@@ -166,7 +184,7 @@ test("without the period's prices the move stays unknown", () => {
   near(line.value, 6_500);
 });
 
-test("totals move as today's holdings would have, held all period; P&L counts the trades", () => {
+test("totals return their P&L on what was held and put in", () => {
   const lines = build(
     [position({ quantity: 14 }), position({ symbol: "NVDA", currency: "USD", cost_basis: 800 })],
     { fills: [fill({})] },
@@ -174,7 +192,7 @@ test("totals move as today's holdings would have, held all period; P&L counts th
   const totals = totalsOf(lines);
   near(totals.value, 9_100 + 880);
   near(totals.periodPnl, 9_100 - 6_000 - 2_442 - 20);
-  near(totals.change, (9_100 + 880 - 8_400 - 900) / (8_400 + 900));
+  near(totals.change, (9_100 - 6_000 - 2_442 - 20) / (6_000 + 2_442 + 900));
 });
 
 const line = (l: Partial<PositionLine>): PositionLine => ({
@@ -187,6 +205,8 @@ const line = (l: Partial<PositionLine>): PositionLine => ({
   unrealizedPct: null,
   change: null,
   periodPnl: null,
+  invested: null,
+  openedAt: null,
   live: true,
   ...l,
 });
