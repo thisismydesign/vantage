@@ -64,7 +64,14 @@ export type ChartData = {
   /** The last failure was the signed-out rate limit. */
   limited?: boolean;
   updating: boolean;
+  /** Updating over data older than a refresh cycle, such as the cache on opening the app. */
+  stale: boolean;
 };
+
+// Past one refresh cycle, so the minute's routine refresh doesn't flag the prices as old.
+const STALE_MS = 2 * 60_000;
+const isOld = (data: ChartsResponse | undefined) =>
+  Boolean(data && Date.now() - Date.parse(data.asOf) > STALE_MS);
 
 /** A failed refresh keeps the last good response so the charts never blank. Waits while the session is unknown. */
 export function useChartData(
@@ -74,28 +81,25 @@ export function useChartData(
 ): ChartData {
   const owner = session === undefined ? undefined : (session?.user.id ?? "demo");
   const accessToken = session?.access_token;
-  const [state, setState] = useState<ChartData>(() => ({
-    data: readCache(owner, range),
-    status: "loading",
-    updating: Boolean(range),
-  }));
+  const [state, setState] = useState<ChartData>(() => {
+    const data = readCache(owner, range);
+    return { data, status: "loading", updating: Boolean(range), stale: isOld(data) };
+  });
   useEffect(() => {
     if (!CONFIGURED || !range || !owner) return;
     let disposed = false;
-    setState((previous) => ({
-      ...previous,
-      data:
+    setState((previous) => {
+      const data =
         previous.data?.range === range && previous.owner === owner
           ? previous.data
-          : readCache(owner, range),
-      owner,
-      updating: true,
-    }));
+          : readCache(owner, range);
+      return { ...previous, data, owner, updating: true, stale: isOld(data) };
+    });
     fetchCharts(range, accessToken)
       .then((data) => {
         if (disposed) return;
         writeCache(owner, range, data);
-        setState({ data, owner, status: "ok", updating: false });
+        setState({ data, owner, status: "ok", updating: false, stale: false });
       })
       .catch((e) => {
         if (!disposed)
@@ -104,6 +108,7 @@ export function useChartData(
             status: "failed",
             limited: e instanceof RateLimited,
             updating: false,
+            stale: false,
           }));
       });
     return () => {

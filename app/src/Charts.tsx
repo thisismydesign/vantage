@@ -9,6 +9,7 @@ import {
   Divider,
   Group,
   Loader,
+  LoadingOverlay,
   MultiSelect,
   Paper,
   Popover,
@@ -170,8 +171,10 @@ const TickerChart = memo(function TickerChart({
   asOf,
   base,
   gaps,
+  stale,
 }: {
   ticker: string;
+  stale: boolean;
   gaps: Gaps;
   base: Display;
   asOf: string;
@@ -469,6 +472,7 @@ const TickerChart = memo(function TickerChart({
 
   return (
     <Card withBorder padding={compact ? "xs" : "lg"} radius="md" style={{ minWidth: 0 }}>
+      <StaleOverlay visible={stale} />
       {compact ? (
         <>
           {/* Bottom margin keeps the header clear of the chart's top axis label. */}
@@ -667,6 +671,20 @@ const TickerChart = memo(function TickerChart({
   );
 });
 
+/** Over prices kept from an earlier visit while fresh ones load, so they don't read as current. */
+function StaleOverlay({ visible }: { visible: boolean }) {
+  return (
+    <LoadingOverlay
+      visible={visible}
+      zIndex={1}
+      transitionProps={{ duration: 200 }}
+      overlayProps={{ backgroundOpacity: 0.6 }}
+      loaderProps={{ size: "sm" }}
+      aria-label="Updating prices"
+    />
+  );
+}
+
 /** Owns its 1s tick so nothing else re-renders. */
 function RefreshRing({
   cycle,
@@ -774,7 +792,7 @@ export function Charts({ header = true }: { header?: boolean }) {
 
   const activeRange = RANGES.find((r) => r.value === range) ?? RANGES[0];
   const apiRange: ChartRange = list ? "1d" : isIntraday ? (range as ChartRange) : "history";
-  const { data, status, limited, updating } = useChartData(apiRange, cycle, session);
+  const { data, status, limited, updating, stale } = useChartData(apiRange, cycle, session);
   const week = useChartData(list ? "1w" : null, cycle, session);
   const history = useChartData(list ? "history" : null, historyCycle, session);
   // A cached response for another range must not render under this one.
@@ -958,8 +976,8 @@ export function Charts({ header = true }: { header?: boolean }) {
   const statusText = (
     <Text size="xs" c="dimmed" ta="center" truncate>
       {shown.length} shown ·{" "}
-      {live ? `prices as of ${displayDateTime(live.asOf)}` : "loading prices"} · times in{" "}
-      {LOCAL_TIME_ZONE}
+      {live ? `prices as of ${displayDateTime(live.asOf)}` : "loading prices"}
+      {live && stale ? ", updating" : ""} · times in {LOCAL_TIME_ZONE}
       {status === "failed" && (
         <Text span c={TONE.warning}>
           {" "}
@@ -1057,12 +1075,15 @@ export function Charts({ header = true }: { header?: boolean }) {
               onToggle={() => toggle(collapsedThemes, setCollapsedThemes, g.id)}
             >
               {list ? (
-                <WatchTable
-                  tickers={g.tickers}
-                  itemByTicker={itemByTicker}
-                  quotes={quotes}
-                  held={held}
-                />
+                <Box pos="relative">
+                  <StaleOverlay visible={stale} />
+                  <WatchTable
+                    tickers={g.tickers}
+                    itemByTicker={itemByTicker}
+                    quotes={quotes}
+                    held={held}
+                  />
+                </Box>
               ) : (
                 <SimpleGrid
                   cols={compact ? { base: 1, sm: 2, md: 3, lg: 4, xl: 5 } : 1}
@@ -1081,6 +1102,7 @@ export function Charts({ header = true }: { header?: boolean }) {
                       saved={savedPoints.get(t) ?? EMPTY}
                       base={base}
                       gaps={gaps}
+                      stale={stale}
                     />
                   ))}
                 </SimpleGrid>
