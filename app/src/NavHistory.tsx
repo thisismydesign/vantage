@@ -2,15 +2,29 @@ import { AreaChart } from "@mantine/charts";
 import { Card, Group, Paper, SegmentedControl, Text } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { useMemo } from "react";
-import { dateTicks, niceTicks } from "./lib/axis.ts";
+import { dateTicks, niceTicks, stepDecimals } from "./lib/axis.ts";
 import type { NavRow } from "./lib/broker.ts";
 import { displayDate, money as fullMoney, signedPct } from "./lib/format.ts";
+import { gain, netFlows, timeWeighted } from "./lib/performance.ts";
 import { cutoff, PERIODS } from "./lib/periods.ts";
 import { usePrivacy, usePrivateMoney } from "./lib/privacy.tsx";
 import { useLocalState } from "./lib/useLocalState.ts";
 import { TONE } from "./theme.ts";
 
-type Row = { x: number; nav: number; cash: number | null; day: string };
+type Row = {
+  x: number;
+  nav: number;
+  cash: number | null;
+  flow: number | null;
+  /** Time-weighted since the period's first day. */
+  ret: number | null;
+  day: string;
+};
+
+const MODES = [
+  { value: "value", label: "Value" },
+  { value: "performance", label: "Performance" },
+];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -29,29 +43,44 @@ export function NavHistory({ history, base }: { history: NavRow[]; base: string 
   const money = usePrivateMoney();
   const { hidden } = usePrivacy();
   const [period, setPeriod] = useLocalState("portfolio:history:period", "1y");
+  const [mode, setMode] = useLocalState("portfolio:history:mode", "value");
+  const performance = mode === "performance";
   const since = cutoff(period);
 
-  const rows = useMemo<Row[]>(
-    () =>
-      history
-        .filter((r) => !since || r.as_of >= since)
-        .map((r) => ({
-          x: Date.parse(`${r.as_of}T00:00:00Z`),
-          nav: r.nav,
-          cash: r.cash,
-          day: r.as_of,
-        })),
+  const inPeriod = useMemo(
+    () => history.filter((r) => !since || r.as_of >= since),
     [history, since],
   );
+  const rows = useMemo<Row[]>(() => {
+    const returns = timeWeighted(inPeriod);
+    return inPeriod.map((r, i) => ({
+      x: Date.parse(`${r.as_of}T00:00:00Z`),
+      nav: r.nav,
+      cash: r.cash,
+      flow: r.flow,
+      ret: returns?.[i] ?? null,
+      day: r.as_of,
+    }));
+  }, [inPeriod]);
   const first = rows[0];
   const last = rows.at(-1);
-  const change = first && last && first.nav ? last.nav / first.nav - 1 : null;
-  const colour = TONE[change == null ? "neutral" : change >= 0 ? "positive" : "negative"];
+  const twr = last?.ret ?? null;
+  const made = gain(inPeriod);
+  const moved = netFlows(inPeriod);
+  // Without flows, the change in value is all that's known; it may include deposits.
+  const change = made ?? (first && last ? last.nav - first.nav : null);
+  const trend = performance ? twr : change;
+  const colour = TONE[trend == null ? "neutral" : trend >= 0 ? "positive" : "negative"];
+  const signedMoney = (n: number) => `${n >= 0 ? "+" : ""}${money(n, base)}`;
+  const arrow = (n: number) => (n >= 0 ? "▲" : "▼");
 
   const axes = useMemo(() => {
     if (rows.length < 2) return null;
-    const navs = rows.map((r) => r.nav);
-    const yTicks = niceTicks(Math.min(...navs), Math.max(...navs), compact ? 3 : 4);
+    const values = rows.map((r) => (performance ? r.ret : r.nav));
+    if (values.some((v) => v == null)) return null;
+    const ys = values as number[];
+    const yTicks = niceTicks(Math.min(...ys), Math.max(...ys), compact ? 3 : 4);
+    const pctDigits = Math.max(0, ...yTicks.map((t) => stepDecimals(t) - 2));
     const dates = dateTicks(rows[0].x, rows.at(-1)!.x, compact ? 4 : 6);
     const xLabel = (t: number) => {
       const d = new Date(t);
@@ -60,35 +89,50 @@ export function NavHistory({ history, base }: { history: NavRow[]; base: string 
       if (dates.unit === "month") return MONTHS[d.getUTCMonth()];
       return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
     };
-    return { yTicks, xTicks: dates.ticks, xLabel };
-  }, [rows, compact]);
+    return { yTicks, pctDigits, xTicks: dates.ticks, xLabel };
+  }, [rows, compact, performance]);
 
   return (
     <Card withBorder>
       <Group justify="space-between" align="center" wrap="wrap" gap="xs">
-        <Text fw={600}>Account value</Text>
+        <Group gap="sm">
+          <Text fw={600}>Account</Text>
+          <SegmentedControl size="xs" data={MODES} value={mode} onChange={setMode} />
+        </Group>
         <SegmentedControl size="xs" data={PERIODS} value={period} onChange={setPeriod} />
       </Group>
       {first && last && (
         <Group gap="md" align="baseline" mt="sm">
-          <Text fz={24} fw={500} style={{ fontVariantNumeric: "tabular-nums" }}>
-            {money(last.nav, base)}
+          <Text
+            fz={24}
+            fw={500}
+            c={performance ? colour : undefined}
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            {performance ? (twr == null ? "—" : signedPct(twr, 2)) : money(last.nav, base)}
           </Text>
-          <Text c={colour} fw={500}>
-            {change == null
-              ? "—"
-              : `${change >= 0 ? "▲" : "▼"} ${signedPct(change)} (${last.nav >= first.nav ? "+" : ""}${money(last.nav - first.nav, base)})`}{" "}
-            <Text span c="dimmed" size="sm">
-              since {displayDate(first.day)}
+          {change != null && (
+            <Text c={colour} fw={500}>
+              {arrow(change)} {signedMoney(change)}{" "}
+              <Text span c="dimmed" size="sm">
+                {made == null ? "" : "gain "}since {displayDate(first.day)}
+                {made == null
+                  ? " · deposits not reported"
+                  : moved
+                    ? ` · ${signedMoney(moved)} ${moved > 0 ? "deposited" : "withdrawn"}`
+                    : ""}
+              </Text>
             </Text>
-          </Text>
+          )}
         </Group>
       )}
       {!axes ? (
         <Text size="sm" c="dimmed" py="xl">
-          {history.length
-            ? "Not enough statements in this period."
-            : "Your agent sends the broker's daily NAV through the API; the history shows here."}
+          {!history.length
+            ? "Your agent sends the broker's daily NAV through the API; the history shows here."
+            : performance && rows.length > 1 && twr == null
+              ? "Performance needs the deposits and withdrawals of every day; your agent hasn't sent them for this period."
+              : "Not enough statements in this period."}
         </Text>
       ) : (
         <AreaChart
@@ -96,7 +140,12 @@ export function NavHistory({ history, base }: { history: NavRow[]; base: string 
           mt="sm"
           data={rows}
           dataKey="x"
-          series={[{ name: "nav", color: colour, label: "Account value" }]}
+          series={[
+            performance
+              ? { name: "ret", color: colour, label: "Performance" }
+              : { name: "nav", color: colour, label: "Account value" },
+          ]}
+          referenceLines={performance ? [{ y: 0, color: TONE.neutral }] : undefined}
           curveType="linear"
           withDots={false}
           strokeWidth={2}
@@ -114,7 +163,8 @@ export function NavHistory({ history, base }: { history: NavRow[]; base: string 
             orientation: "right",
             width: compact ? 44 : 56,
             tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
-            tickFormatter: (v: number) => (hidden ? "" : shortMoney(v, base)),
+            tickFormatter: (v: number) =>
+              performance ? signedPct(v, axes.pctDigits) : hidden ? "" : shortMoney(v, base),
           }}
           xAxisProps={{
             type: "number",
@@ -129,20 +179,20 @@ export function NavHistory({ history, base }: { history: NavRow[]; base: string 
             content: ({ payload }) => {
               const row = (payload?.[0]?.payload ?? null) as Row | null;
               if (!row) return null;
-              const move = first?.nav ? row.nav / first.nav - 1 : null;
               return (
                 <Paper withBorder shadow="sm" px="sm" py={6}>
                   <Text size="sm" fw={600} style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {money(row.nav, base)}{" "}
-                    {move != null && (
-                      <Text span size="xs" fw={500} c="dimmed">
-                        {signedPct(move)}
-                      </Text>
-                    )}
+                    {performance ? signedPct(row.ret!, 2) : money(row.nav, base)}{" "}
+                    <Text span size="xs" fw={500} c="dimmed">
+                      {performance ? money(row.nav, base) : row.ret != null && signedPct(row.ret)}
+                    </Text>
                   </Text>
                   <Text size="xs" c="dimmed">
                     {displayDate(row.day)}
-                    {row.cash != null ? ` · cash ${money(row.cash, base)}` : ""}
+                    {!performance && row.cash != null ? ` · cash ${money(row.cash, base)}` : ""}
+                    {row.flow
+                      ? ` · ${money(Math.abs(row.flow), base)} ${row.flow > 0 ? "deposited" : "withdrawn"}`
+                      : ""}
                   </Text>
                 </Paper>
               );

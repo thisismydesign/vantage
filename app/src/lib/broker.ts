@@ -60,8 +60,8 @@ export type Snapshot = {
   fetched_at: string;
 };
 
-/** Base currency. */
-export type NavRow = { as_of: string; nav: number; cash: number | null };
+/** Base currency. `flow` is null when the agent didn't report it. */
+export type NavRow = { as_of: string; nav: number; cash: number | null; flow: number | null };
 
 export type BrokerData = {
   snapshot: Snapshot | null;
@@ -109,7 +109,7 @@ export function useBrokerData(session: SessionState): BrokerData {
         }
       };
       const [history, fills] = await Promise.all([
-        all<NavRow>("nav_history", "as_of,nav,cash", ["as_of"]),
+        all<NavRow>("nav_history", "as_of,nav,cash,flow", ["as_of"]),
         all<FillRow>("trade_fills", FILL_COLUMNS, ["traded_at", "id"]),
       ]);
       if (disposed) return;

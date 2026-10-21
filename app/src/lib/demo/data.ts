@@ -7,8 +7,8 @@ import type { EventCategory, Sentiment } from "../../../../shared/tables.ts";
 
 export const DEMO_ACCOUNT = "U1234567";
 export const DEMO_BASE_CURRENCY = "USD";
-export const DEMO_NAV = 47525.2;
-export const DEMO_CASH = -5595.31;
+export const DEMO_NAV = 52525.2;
+export const DEMO_CASH = -595.31;
 
 export const DEMO_THEMES: { id: string; label: string }[] = [
   { id: "ai", label: "AI" },
@@ -478,7 +478,10 @@ export const DEMO_POSITIONS: DemoPosition[] = [
   },
 ];
 
-/** Account value at each statement: days from the latest one, NAV, cash. */
+/** Money paid in: days from the latest statement, amount. Every later value carries it. */
+export const DEMO_DEPOSITS: [number, number][] = [[-179, 5000]];
+
+/** Account value at each statement, before deposits: days from the latest one, NAV, cash. */
 export const DEMO_NAV_HISTORY: [number, number, number][] = [
   [-364, 20000, 20000],
   [-361, 20000, 20000],
@@ -1032,6 +1035,8 @@ export const demoList = () => ({
 });
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const deposited = (keep: (day: number) => boolean) =>
+  DEMO_DEPOSITS.filter(([day]) => keep(day)).reduce((sum, [, amount]) => sum + amount, 0);
 
 /** The demo account as table rows, without `owner`, dated around `now`. */
 export function demoRows(now: Date) {
@@ -1091,8 +1096,9 @@ export function demoRows(now: Date) {
       as_of: addDays(asOf, day),
       ...account,
       base_currency: DEMO_BASE_CURRENCY,
-      nav,
-      cash,
+      nav: round2(nav + deposited((d) => d <= day)),
+      cash: round2(cash + deposited((d) => d <= day)),
+      flow: deposited((d) => d === day),
     })),
     events: DEMO_EVENTS.map((e, i) => ({
       ticker: e.ticker,

@@ -11,7 +11,7 @@ export const demoBroker = (): BrokerData => {
   const { snapshot, positions, nav, fills } = demo();
   return {
     snapshot: { ...snapshot, positions },
-    history: nav.map(({ as_of, nav, cash }) => ({ as_of, nav, cash })),
+    history: nav.map(({ as_of, nav, cash, flow }) => ({ as_of, nav, cash, flow })),
     fills,
     loading: false,
   };
