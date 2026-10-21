@@ -1,6 +1,7 @@
 import {
   ActionIcon,
   Box,
+  Button,
   Group,
   LoadingOverlay,
   Popover,
@@ -199,7 +200,7 @@ export function PositionsPage({
   const compact = useMediaQuery("(max-width: 48em)") ?? false;
   const [display, setDisplay] = useLocalState<Display>("positions:display", base);
   const [stored, setPeriod] = useLocalState<string>("positions:period", "1d");
-  const [grouped, setGrouped] = useLocalState("positions:grouped", false);
+  const [grouped, setGrouped] = useLocalState("positions:grouped", true);
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const period: Period = isPeriod(stored) ? stored : "1d";
   const periodLabel = RANGES.find((r) => r.value === period)!.label;
@@ -242,16 +243,31 @@ export function PositionsPage({
   );
   const totalOf = (keys: Set<string>) => totalsOf(totalLines.filter((l) => keys.has(l.key)));
 
+  // Grouped as on the watchlist: a position shows in every group its ticker is in.
   const groups = useMemo(() => {
     if (!grouped) return [{ id: "all", label: "All", lines }];
-    const themeOf = new Map(items.map((i) => [i.ticker, i.themes[0]]));
-    const out = [...themes, { id: "unclassified", label: "Unclassified" }].map((t) => ({
-      ...t,
-      lines: lines.filter((l) => (themeOf.get(l.ticker) ?? "unclassified") === t.id),
-    }));
-    return out.filter((g) => g.lines.length);
+    const themesOf = new Map(items.map((i) => [i.ticker, i.themes]));
+    const out: { id: string; label: string; lines: PositionLine[] }[] = [];
+    for (const theme of themes) {
+      const inTheme = lines.filter((l) => themesOf.get(l.ticker)?.includes(theme.id));
+      if (inTheme.length) out.push({ id: theme.id, label: theme.label, lines: inTheme });
+    }
+    const placed = new Set(out.flatMap((g) => g.lines.map((l) => l.key)));
+    const rest = lines.filter((l) => !placed.has(l.key));
+    if (rest.length) out.push({ id: "untagged", label: "Untagged", lines: rest });
+    return out;
   }, [grouped, lines, items, themes]);
   const colorOf = useMemo(() => groupColors(themes), [themes]);
+  const allShut = groups.length > 0 && groups.every((g) => collapsed.includes(g.id));
+  const collapseAll = grouped ? (
+    <Button
+      size="xs"
+      variant="default"
+      onClick={() => setCollapsed(allShut ? [] : groups.map((g) => g.id))}
+    >
+      {allShut ? "Expand all" : "Collapse all"}
+    </Button>
+  ) : null;
 
   const periodControl = (
     <SegmentedControl
@@ -325,14 +341,20 @@ export function PositionsPage({
   return (
     <Stack gap="sm">
       {compact ? (
-        <Group gap="xs" wrap="nowrap">
-          <Box style={{ flex: 1, minWidth: 0 }}>{periodControl}</Box>
-          {settings}
-        </Group>
+        <>
+          <Group gap="xs" wrap="nowrap">
+            <Box style={{ flex: 1, minWidth: 0 }}>{periodControl}</Box>
+            {settings}
+          </Group>
+          {collapseAll && <Box>{collapseAll}</Box>}
+        </>
       ) : (
-        <Group justify="flex-end" gap="xs">
-          {periodControl}
-          {settings}
+        <Group justify="space-between" gap="xs">
+          {collapseAll ?? <span />}
+          <Group gap="xs">
+            {periodControl}
+            {settings}
+          </Group>
         </Group>
       )}
       {grouped
