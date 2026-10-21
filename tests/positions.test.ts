@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ChartsResponse, IntradaySeries } from "../shared/api.ts";
 import {
+  BY_TICKER,
   buildPositions,
+  sortLines,
   totalsOf,
   type Display,
   type Fill,
   type Holding,
   type Period,
+  type PositionLine,
 } from "../app/src/lib/positions.ts";
 
 const near = (actual: number | null, expected: number) =>
@@ -172,4 +175,49 @@ test("totals move as today's holdings would have, held all period; P&L counts th
   near(totals.value, 9_100 + 880);
   near(totals.periodPnl, 9_100 - 6_000 - 2_442 - 20);
   near(totals.change, (9_100 + 880 - 8_400 - 900) / (8_400 + 900));
+});
+
+const line = (l: Partial<PositionLine>): PositionLine => ({
+  key: l.ticker ?? "X",
+  ticker: "X",
+  name: "",
+  currency: "EUR",
+  value: null,
+  unrealized: null,
+  unrealizedPct: null,
+  change: null,
+  periodPnl: null,
+  live: true,
+  ...l,
+});
+const tickers = (lines: PositionLine[]) => lines.map((l) => l.ticker);
+
+test("sorts by ticker, or by a column with unknowns last either way", () => {
+  const lines = [
+    line({ ticker: "NVDA", change: 0.02 }),
+    line({ ticker: "AMD", change: null }),
+    line({ ticker: "ASML", change: -0.01 }),
+  ];
+  assert.deepEqual(tickers(sortLines(lines, BY_TICKER)), ["AMD", "ASML", "NVDA"]);
+  assert.deepEqual(tickers(sortLines(lines, { key: "change", desc: true })), [
+    "NVDA",
+    "ASML",
+    "AMD",
+  ]);
+  assert.deepEqual(tickers(sortLines(lines, { key: "change", desc: false })), [
+    "ASML",
+    "NVDA",
+    "AMD",
+  ]);
+});
+
+test("amounts rank in the ranked lines' currency, not each line's own", () => {
+  const native = [
+    line({ ticker: "ASML", currency: "EUR", value: 6_000 }),
+    line({ ticker: "NVDA", currency: "USD", value: 7_000 }),
+  ];
+  const inEur = [line({ ticker: "ASML", value: 6_000 }), line({ ticker: "NVDA", value: 5_900 })];
+  const sorted = sortLines(native, { key: "weight", desc: true }, inEur);
+  assert.deepEqual(tickers(sorted), ["ASML", "NVDA"]);
+  assert.equal(sorted[1].currency, "USD");
 });

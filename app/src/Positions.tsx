@@ -7,13 +7,18 @@ import {
   Popover,
   SegmentedControl,
   Stack,
-  Switch,
   Table,
   Text,
   Tooltip,
+  UnstyledButton,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconAdjustmentsHorizontal } from "@tabler/icons-react";
+import {
+  IconAdjustmentsHorizontal,
+  IconChevronDown,
+  IconChevronUp,
+  IconSelector,
+} from "@tabler/icons-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { BaseCurrency, ChartItem, ChartsResponse, ChartTheme } from "@shared/api.ts";
 import { RANGES } from "./Charts.tsx";
@@ -22,12 +27,16 @@ import { useChartData } from "./lib/api.ts";
 import { resolver, type FillRow, type Snapshot } from "./lib/broker.ts";
 import { displayDate, displayDateTime, pct, signedPct } from "./lib/format.ts";
 import {
+  BY_TICKER,
   buildPositions,
+  sortLines,
   totalsOf,
   type Display,
   type Period,
   type PositionLine,
   type PositionTotals,
+  type Sort,
+  type SortKey,
 } from "./lib/positions.ts";
 import { usePrivateMoney } from "./lib/privacy.tsx";
 import { useSession } from "./lib/supabase.ts";
@@ -51,6 +60,43 @@ function Setting({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+function SortTh({
+  column,
+  sort,
+  onSort,
+  w,
+  children,
+}: {
+  column: SortKey;
+  sort: Sort;
+  onSort: (sort: Sort) => void;
+  w?: number;
+  children: ReactNode;
+}) {
+  const active = sort.key === column;
+  const right = column !== "ticker";
+  const Icon = !active ? IconSelector : sort.desc ? IconChevronDown : IconChevronUp;
+  return (
+    <Table.Th
+      ta={right ? "right" : undefined}
+      w={w}
+      aria-sort={active ? (sort.desc ? "descending" : "ascending") : undefined}
+    >
+      <UnstyledButton
+        fz="inherit"
+        fw="inherit"
+        // A first click ranks numbers largest first, tickers A to Z.
+        onClick={() => onSort({ key: column, desc: active ? !sort.desc : right })}
+      >
+        <Group gap={2} wrap="nowrap" justify={right ? "flex-end" : undefined}>
+          {children}
+          <Icon size={14} opacity={active ? 1 : 0.4} />
+        </Group>
+      </UnstyledButton>
+    </Table.Th>
+  );
+}
+
 function PositionsTable({
   lines,
   totals,
@@ -59,6 +105,8 @@ function PositionsTable({
   periodLabel,
   compact,
   loading,
+  sort,
+  onSort,
 }: {
   lines: PositionLine[];
   totals: PositionTotals;
@@ -67,7 +115,10 @@ function PositionsTable({
   periodLabel: string;
   compact: boolean;
   loading: boolean;
+  sort: Sort;
+  onSort: (sort: Sort) => void;
 }) {
+  const th = { sort, onSort };
   const money = usePrivateMoney();
   const amount = (n: number | null, currency: string) => (n == null ? "—" : money(n, currency));
   const signed = (n: number | null, currency: string) =>
@@ -86,29 +137,31 @@ function PositionsTable({
     >
       <Table.Thead>
         <Table.Tr>
-          <Table.Th w={compact ? undefined : 300}>Ticker</Table.Th>
-          <Table.Th ta="right" w={compact ? undefined : 130}>
+          <SortTh {...th} column="ticker" w={compact ? undefined : 300}>
+            Ticker
+          </SortTh>
+          <SortTh {...th} column="value" w={compact ? undefined : 130}>
             Value
-          </Table.Th>
+          </SortTh>
           {!compact && (
-            <Table.Th ta="right" w={80}>
+            <SortTh {...th} column="weight" w={90}>
               Weight
-            </Table.Th>
+            </SortTh>
           )}
-          <Table.Th ta="right" w={compact ? undefined : 130}>
+          <SortTh {...th} column="unrealized" w={compact ? undefined : 130}>
             {compact ? "Unrl." : "Unrealized"}
-          </Table.Th>
+          </SortTh>
           {!compact && (
-            <Table.Th ta="right" w={90}>
+            <SortTh {...th} column="unrealizedPct" w={100}>
               Unrl. %
-            </Table.Th>
+            </SortTh>
           )}
-          <Table.Th ta="right" w={compact ? undefined : 90}>
+          <SortTh {...th} column="change" w={compact ? undefined : 90}>
             {periodLabel} %
-          </Table.Th>
-          <Table.Th ta="right" w={compact ? undefined : 130}>
+          </SortTh>
+          <SortTh {...th} column="periodPnl" w={compact ? undefined : 130}>
             {periodLabel} P&L
-          </Table.Th>
+          </SortTh>
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
@@ -200,7 +253,10 @@ export function PositionsPage({
   const compact = useMediaQuery("(max-width: 48em)") ?? false;
   const [display, setDisplay] = useLocalState<Display>("positions:display", base);
   const [stored, setPeriod] = useLocalState<string>("positions:period", "1d");
-  const [grouped, setGrouped] = useLocalState("positions:grouped", true);
+  const [view, setView] = useLocalState<"overview" | "list">("positions:view", "overview");
+  const grouped = view === "overview";
+  // Not persisted: every visit opens sorted by ticker.
+  const [sort, setSort] = useState<Sort>(BY_TICKER);
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const period: Period = isPeriod(stored) ? stored : "1d";
   const periodLabel = RANGES.find((r) => r.value === period)!.label;
@@ -232,10 +288,8 @@ export function PositionsPage({
     const shown = build(display);
     // Native amounts don't add up across currencies, so totals and weights stay in the account's.
     const totalLines = display === "native" ? build(base) : shown;
-    const order = new Map(totalLines.map((l) => [l.key, l.value ?? 0]));
-    shown.sort((a, b) => order.get(b.key)! - order.get(a.key)!);
-    return { lines: shown, totalLines };
-  }, [snapshot, fills, day, current, period, display, base, resolve, names]);
+    return { lines: sortLines(shown, sort, totalLines), totalLines };
+  }, [snapshot, fills, day, current, period, display, base, resolve, names, sort]);
   const totalCurrency = display === "native" ? base : display;
   const grandTotal = totalsOf(totalLines).value;
   const weights = new Map(
@@ -305,15 +359,20 @@ export function PositionsPage({
               ]}
             />
           </Setting>
-          <Switch
-            size="sm"
-            label="Group by theme"
-            checked={grouped}
-            onChange={(e) => setGrouped(e.currentTarget.checked)}
-          />
         </Stack>
       </Popover.Dropdown>
     </Popover>
+  );
+  const viewControl = (
+    <SegmentedControl
+      size="xs"
+      value={view}
+      onChange={(v) => setView(v as typeof view)}
+      data={[
+        { value: "overview", label: "Overview" },
+        { value: "list", label: "List" },
+      ]}
+    />
   );
   const table = (shown: PositionLine[], totals: PositionTotals) => (
     <Box pos="relative">
@@ -333,6 +392,8 @@ export function PositionsPage({
           periodLabel={periodLabel}
           compact={compact}
           loading={loading}
+          sort={sort}
+          onSort={setSort}
         />
       </Table.ScrollContainer>
     </Box>
@@ -346,11 +407,17 @@ export function PositionsPage({
             <Box style={{ flex: 1, minWidth: 0 }}>{periodControl}</Box>
             {settings}
           </Group>
-          {collapseAll && <Box>{collapseAll}</Box>}
+          <Group gap="xs" justify="space-between">
+            {viewControl}
+            {collapseAll}
+          </Group>
         </>
       ) : (
         <Group justify="space-between" gap="xs">
-          {collapseAll ?? <span />}
+          <Group gap="xs">
+            {viewControl}
+            {collapseAll}
+          </Group>
           <Group gap="xs">
             {periodControl}
             {settings}

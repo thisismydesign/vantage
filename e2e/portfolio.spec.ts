@@ -39,3 +39,20 @@ test("charts the account value and its performance net of deposits", async ({ pa
   await expect(card.getByText("+21.00%")).toBeVisible();
   await expect(card.locator("svg.recharts-surface")).toBeVisible();
 });
+
+test("lists positions by ticker, and re-sorts them by any column", async ({ page }) => {
+  await page.goto("/#/portfolio/positions");
+  await page.getByText("List", { exact: true }).click();
+  const tickers = page.locator("tbody tr td:first-child p:first-child");
+  await expect(tickers.first()).toBeVisible({ timeout: 60_000 });
+  const shown = async () => (await tickers.allInnerTexts()).map((t) => t.trim());
+  const listed = await shown();
+  expect(listed).toEqual([...listed].sort());
+
+  await page.getByRole("button", { name: "Value", exact: true }).click();
+  await expect(page.getByRole("columnheader", { name: "Value", exact: true })).toHaveAttribute(
+    "aria-sort",
+    "descending",
+  );
+  expect(await shown()).not.toEqual(listed);
+});

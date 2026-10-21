@@ -290,3 +290,31 @@ export function totalsOf(lines: PositionLine[]): PositionTotals {
     periodPnl: withPnl ? pnl : null,
   };
 }
+
+export type SortKey =
+  "ticker" | "value" | "weight" | "unrealized" | "unrealizedPct" | "change" | "periodPnl";
+export type Sort = { key: SortKey; desc: boolean };
+export const BY_TICKER: Sort = { key: "ticker", desc: false };
+const AMOUNTS = new Set<SortKey>(["value", "weight", "unrealized", "periodPnl"]);
+
+/** Amounts rank by `ranked`'s lines, matched by key, since native ones don't compare across currencies. Unknowns go last either way. */
+export function sortLines(
+  lines: PositionLine[],
+  sort: Sort,
+  ranked: PositionLine[] = lines,
+): PositionLine[] {
+  const byKey = new Map(ranked.map((l) => [l.key, l]));
+  const field = sort.key === "weight" ? "value" : sort.key;
+  const valueOf = (l: PositionLine) =>
+    (AMOUNTS.has(sort.key) ? (byKey.get(l.key) ?? l) : l)[field as Exclude<SortKey, "weight">];
+  const byTicker = (a: PositionLine, b: PositionLine) =>
+    a.ticker.localeCompare(b.ticker) || a.key.localeCompare(b.key);
+  return [...lines].sort((a, b) => {
+    const x = valueOf(a);
+    const y = valueOf(b);
+    if (x == null || y == null) return x == null && y == null ? byTicker(a, b) : x == null ? 1 : -1;
+    const order =
+      typeof x === "string" ? x.localeCompare(y as string) : (x as number) - (y as number);
+    return (sort.desc ? -order : order) || byTicker(a, b);
+  });
+}
