@@ -175,3 +175,87 @@ test("1D keeps pre-market and after-hours bars; the previous close skips after-h
   assert.equal(result.previousCloseAt, "2026-10-14T19:55:00.000Z");
   assert.equal(result.previousClose, 100);
 });
+
+test("5D carries the regular hours of the days it shows", () => {
+  const result = intradayRange(
+    "TEST",
+    {
+      meta: {
+        currency: "USD",
+        exchangeTimezoneName: "America/New_York",
+        regularPeriods: ["08", "09", "12", "13", "14", "15"].map((day) => ({
+          start: `2026-10-${day}T13:30:00.000Z`,
+          end: `2026-10-${day}T20:00:00.000Z`,
+        })),
+      },
+      quotes: ["08", "09", "12", "13", "14", "15"].flatMap((day) => [
+        { date: `2026-10-${day}T09:00:00Z`, close: 99 },
+        { date: `2026-10-${day}T14:00:00Z`, close: 100 },
+        { date: `2026-10-${day}T22:00:00Z`, close: 101 },
+      ]),
+    },
+    "1w",
+  );
+  assert.equal(result.points.length, 15);
+  assert.deepEqual(result.regularPeriods?.[0], [
+    "2026-10-09T13:30:00.000Z",
+    "2026-10-09T20:00:00.000Z",
+  ]);
+  assert.equal(result.regularPeriods?.length, 5);
+});
+
+test("A closing auction just past Yahoo's regular hours stays in the regular session", () => {
+  const regularPeriods = ["15", "16"].map((day) => ({
+    start: `2026-10-${day}T00:00:00.000Z`,
+    end: `2026-10-${day}T06:00:00.000Z`,
+  }));
+  const quotes = ["15", "16"].flatMap((day) => [
+    { date: `2026-10-${day}T05:55:00Z`, close: 100 },
+    { date: `2026-10-${day}T06:30:00Z`, close: 101 },
+  ]);
+  const chart = {
+    meta: {
+      currency: "KRW",
+      exchangeTimezoneName: "Asia/Seoul",
+      regularPeriods,
+      currentTradingPeriod: {
+        pre: { start: "2026-10-15T22:30:00Z", end: "2026-10-16T00:00:00Z" },
+        regular: { start: "2026-10-16T00:00:00Z", end: "2026-10-16T06:00:00Z" },
+        post: { start: "2026-10-16T06:00:00Z", end: "2026-10-16T09:00:00Z" },
+      },
+    },
+    quotes,
+  };
+  const day = intradayRange("TEST", chart, "1d", Date.parse("2026-10-16T07:00:00Z"));
+  assert.equal(day.marketClose, "2026-10-16T06:30:00.000Z");
+  assert.equal(day.extendedClose, undefined);
+  assert.equal(day.points.length, 2);
+  assert.equal(day.previousCloseAt, "2026-10-15T06:30:00.000Z");
+  assert.equal(intradayRange("TEST", chart, "1w").regularPeriods, undefined);
+});
+
+test("24H carries the regular hours it overlaps", () => {
+  const result = intradayRange(
+    "TEST",
+    {
+      meta: {
+        currency: "USD",
+        exchangeTimezoneName: "America/New_York",
+        regularPeriods: ["14", "15"].map((day) => ({
+          start: `2026-10-${day}T13:30:00.000Z`,
+          end: `2026-10-${day}T20:00:00.000Z`,
+        })),
+      },
+      quotes: [
+        { date: "2026-10-15T09:00:00Z", close: 99 },
+        { date: "2026-10-15T14:00:00Z", close: 100 },
+        { date: "2026-10-15T22:00:00Z", close: 101 },
+      ],
+    },
+    "24h",
+    Date.parse("2026-10-15T23:00:00Z"),
+  );
+  assert.deepEqual(result.regularPeriods, [
+    ["2026-10-15T13:30:00.000Z", "2026-10-15T20:00:00.000Z"],
+  ]);
+});

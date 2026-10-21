@@ -12,6 +12,8 @@ export interface IntradaySeries {
   /** Pre-market start and after-hours end; absent where the listing has none. */
   extendedOpen?: string;
   extendedClose?: string;
+  /** 24H and 5D: each day's regular hours, so the chart can tell them from pre-market and after-hours. */
+  regularPeriods?: [string, string][];
   intervalMinutes?: number;
   ticker: string;
   currency: string;

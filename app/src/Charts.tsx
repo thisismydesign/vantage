@@ -157,6 +157,8 @@ const LOCAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const PREV_CLOSE_LEAD_MS = 30 * 60_000;
 const FALLBACK_PAUSE_MS = 45 * 60_000;
+/** A bar this close before a session opens is pre-market; earlier ones are the last session's after-hours. */
+const PRE_MARKET_MAX_MS = 12 * 3_600_000;
 
 const TickerChart = memo(function TickerChart({
   ticker,
@@ -264,45 +266,64 @@ const TickerChart = memo(function TickerChart({
     ]);
   }, [session, sessionConverted, sessionBaseline, isIntraday, saved, range]);
 
-  const { regularHours, extendedHours, outsideHours } = useMemo(() => {
+  const { regularHours, extendedHours, regularPeriods, outsideHours } = useMemo(() => {
     const regular =
       range === "1d" && session?.marketOpen && session?.marketClose
         ? [Date.parse(session.marketOpen), Date.parse(session.marketClose)]
         : undefined;
+    const periods =
+      range === "1w" || range === "24h"
+        ? session?.regularPeriods?.map(([start, end]) => [Date.parse(start), Date.parse(end)])
+        : regular && (session?.extendedOpen || session?.extendedClose)
+          ? [regular]
+          : undefined;
     return {
       regularHours: regular,
       extendedHours: regular && [
         session?.extendedOpen ? Date.parse(session.extendedOpen) : regular[0],
         session?.extendedClose ? Date.parse(session.extendedClose) : regular[1],
       ],
-      outsideHours: (row: Row) =>
-        !regular || row.previousClose
-          ? undefined
-          : row.x < regular[0]
-            ? "Pre-market"
-            : row.x >= regular[1]
-              ? "After hours"
-              : undefined,
+      regularPeriods: periods,
+      outsideHours: (row: Row) => {
+        if (!periods?.length || row.previousClose) return undefined;
+        if (periods.some(([start, end]) => row.x >= start && row.x < end)) return undefined;
+        const next = periods.find(([start]) => start > row.x);
+        return next && next[0] - row.x < PRE_MARKET_MAX_MS ? "Pre-market" : "After hours";
+      },
     };
   }, [range, session]);
 
   // 1D is one session either way.
   const short = gaps === "short" && range !== "1d";
+  // 5D only labels the hours in its tooltip; across five days the dimming and separators clutter.
+  const split = range !== "1w" && Boolean(regularPeriods?.length);
   const plotted = useMemo(() => {
-    if (short) return rows.map((r, i) => ({ ...r, x: i }));
-    if (!regularHours) return rows;
-    const [open, close] = regularHours;
     const withinHours = (a: Row | undefined, b: Row | undefined) =>
-      a && b ? a.x >= open && b.x <= close : undefined;
-    return rows.map((r, i) => {
-      const spans = [withinHours(rows[i - 1], r), withinHours(r, rows[i + 1])];
-      return {
-        ...r,
-        regular: spans.includes(true) ? r.value : null,
-        extended: spans.includes(false) ? r.value : null,
-      };
+      a && b ? regularPeriods!.some(([start, end]) => a.x >= start && b.x <= end) : undefined;
+    const sessions = split
+      ? rows.map((r, i) => {
+          const spans = [withinHours(rows[i - 1], r), withinHours(r, rows[i + 1])];
+          return {
+            ...r,
+            regular: spans.includes(true) ? r.value : null,
+            extended: spans.includes(false) ? r.value : null,
+          };
+        })
+      : rows;
+    return short ? sessions.map((r, i) => ({ ...r, x: i })) : sessions;
+  }, [rows, short, split, regularPeriods]);
+
+  // Where trading pauses at the bell, the gap already marks it.
+  const separators = useMemo(() => {
+    if (regularHours && extendedHours)
+      return regularHours.filter((x) => x > extendedHours[0] && x < extendedHours[1]);
+    if (!split) return [];
+    return regularPeriods!.flat().flatMap((t) => {
+      const after = rows.findIndex((r) => r.x >= t);
+      if (after < 1 || rows[after - 1].value == null || rows[after].value == null) return [];
+      return [short ? after - 0.5 : t];
     });
-  }, [rows, short, regularHours]);
+  }, [regularHours, extendedHours, split, regularPeriods, rows, short]);
 
   const isBar = (row: Row): row is Bar => row.value != null && !row.previousClose;
   const bars = rows.filter(isBar);
@@ -523,7 +544,7 @@ const TickerChart = memo(function TickerChart({
           data={plotted}
           dataKey="x"
           series={[
-            ...(regularHours
+            ...(split
               ? [
                   { name: "regular", color: colour, label: ticker },
                   { name: "extended", color: colour, label: ticker },
@@ -592,11 +613,12 @@ const TickerChart = memo(function TickerChart({
               : []
           }
           referenceLines={[
-            ...(regularHours && extendedHours
-              ? [regularHours[0], regularHours[1]]
-                  .filter((x) => x > extendedHours[0] && x < extendedHours[1])
-                  .map((x) => ({ x, color: "gray.5", strokeDasharray: "4 4", strokeOpacity: 0.35 }))
-              : []),
+            ...separators.map((x) => ({
+              x,
+              color: "gray.5",
+              strokeDasharray: "4 4",
+              strokeOpacity: 0.35,
+            })),
             ...(range === "1d" && baseline != null
               ? [
                   {

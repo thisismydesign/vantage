@@ -214,7 +214,7 @@ async function intraday(
   const chart = await yahooChart(symbol, {
     from: Date.now() - LOOKBACK_DAYS[range] * DAY_MS,
     interval: INTERVAL[range],
-    includePrePost: range !== "1w",
+    includePrePost: true,
   });
   const series = intradayRange(symbol, chart, range);
   const thinned = thin(series.points);
