@@ -18,8 +18,8 @@ export interface Chart {
 
 export function latestSession(ticker: string, chart: Chart, sessionCount = 1): IntradaySeries {
   const timeZone = chart.meta.exchangeTimezoneName;
-  const day = (date: string) =>
-    new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date(date));
+  const dayFormat = new Intl.DateTimeFormat("en-CA", { timeZone });
+  const day = (date: string) => dayFormat.format(new Date(date));
   const points = chart.quotes
     .filter((q) => q.close !== null && Number.isFinite(q.close))
     .map((q): [string, number] => [new Date(q.date).toISOString(), q.close!])

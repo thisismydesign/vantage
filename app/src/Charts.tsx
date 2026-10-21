@@ -264,25 +264,6 @@ const TickerChart = memo(function TickerChart({
     ]);
   }, [session, sessionConverted, sessionBaseline, isIntraday, saved, range]);
 
-  // 1D is one session either way.
-  const short = gaps === "short" && range !== "1d";
-  const plotted = useMemo(
-    () => (short ? rows.map((r, i) => ({ ...r, x: i })) : rows),
-    [rows, short],
-  );
-
-  const isBar = (row: Row): row is Bar => row.value != null && !row.previousClose;
-  const bars = rows.filter(isBar);
-  const last = bars.at(-1);
-  const previousCloseRow = rows[0]?.previousClose ? rows[0] : undefined;
-  const baseline = range === "1d" ? sessionBaseline : bars[0]?.value;
-  const change = last && baseline ? last.value / baseline - 1 : null;
-  const delta = last && baseline ? last.value - baseline : null;
-  const colour = TONE[change == null ? "neutral" : change >= 0 ? "positive" : "negative"];
-  const native = session?.currency ?? saved.native ?? item?.currency ?? undefined;
-  const currency = session ? (sessionConverted ? base : session.currency) : saved.currency;
-  const nativeTag =
-    last && native && currency !== native ? money(last.native ?? last.value, native) : undefined;
   const { regularHours, extendedHours, outsideHours } = useMemo(() => {
     const regular =
       range === "1d" && session?.marketOpen && session?.marketClose
@@ -304,6 +285,37 @@ const TickerChart = memo(function TickerChart({
               : undefined,
     };
   }, [range, session]);
+
+  // 1D is one session either way.
+  const short = gaps === "short" && range !== "1d";
+  const plotted = useMemo(() => {
+    if (short) return rows.map((r, i) => ({ ...r, x: i }));
+    if (!regularHours) return rows;
+    const [open, close] = regularHours;
+    const withinHours = (a: Row | undefined, b: Row | undefined) =>
+      a && b ? a.x >= open && b.x <= close : undefined;
+    return rows.map((r, i) => {
+      const spans = [withinHours(rows[i - 1], r), withinHours(r, rows[i + 1])];
+      return {
+        ...r,
+        regular: spans.includes(true) ? r.value : null,
+        extended: spans.includes(false) ? r.value : null,
+      };
+    });
+  }, [rows, short, regularHours]);
+
+  const isBar = (row: Row): row is Bar => row.value != null && !row.previousClose;
+  const bars = rows.filter(isBar);
+  const last = bars.at(-1);
+  const previousCloseRow = rows[0]?.previousClose ? rows[0] : undefined;
+  const baseline = range === "1d" ? sessionBaseline : bars[0]?.value;
+  const change = last && baseline ? last.value / baseline - 1 : null;
+  const delta = last && baseline ? last.value - baseline : null;
+  const colour = TONE[change == null ? "neutral" : change >= 0 ? "positive" : "negative"];
+  const native = session?.currency ?? saved.native ?? item?.currency ?? undefined;
+  const currency = session ? (sessionConverted ? base : session.currency) : saved.currency;
+  const nativeTag =
+    last && native && currency !== native ? money(last.native ?? last.value, native) : undefined;
 
   const formats = useMemo(() => {
     const make = (options: Intl.DateTimeFormatOptions, zone = timeZone) =>
@@ -511,7 +523,12 @@ const TickerChart = memo(function TickerChart({
           data={plotted}
           dataKey="x"
           series={[
-            { name: "value", color: colour, label: ticker },
+            ...(regularHours
+              ? [
+                  { name: "regular", color: colour, label: ticker },
+                  { name: "extended", color: colour, label: ticker },
+                ]
+              : [{ name: "value", color: colour, label: ticker }]),
             ...(rows.some((r) => r.bridge != null)
               ? [{ name: "bridge", color: colour, strokeDasharray: "3 3" }]
               : []),
@@ -519,7 +536,9 @@ const TickerChart = memo(function TickerChart({
           areaProps={(series) =>
             series.name === "bridge"
               ? { fill: "none", strokeOpacity: 0.45, strokeWidth: 1.5, activeDot: false }
-              : {}
+              : series.name === "extended"
+                ? { strokeOpacity: 0.4, fillOpacity: 0.4 }
+                : {}
           }
           curveType="linear"
           withDots={false}
@@ -552,22 +571,33 @@ const TickerChart = memo(function TickerChart({
           }}
           referenceAreas={
             regularHours && extendedHours
-              ? [
-                  [extendedHours[0], regularHours[0]],
-                  [regularHours[1], extendedHours[1]],
-                ]
+              ? (
+                  [
+                    [extendedHours[0], regularHours[0], "Pre-market"],
+                    [regularHours[1], extendedHours[1], "After hours"],
+                  ] as const
+                )
                   .filter(([from, to]) => to > from)
-                  .map(([x1, x2]) => ({
+                  .map(([x1, x2, name]) => ({
                     x1,
                     x2,
-                    color: TONE.neutral,
-                    fillOpacity: 0.12,
+                    fillOpacity: 0,
+                    strokeOpacity: 0,
                     ifOverflow: "hidden" as const,
+                    label: compact
+                      ? undefined
+                      : { value: name, fill: "var(--mantine-color-dimmed)", fontSize: 11 },
+                    labelPosition: "insideTop" as const,
                   }))
               : []
           }
-          referenceLines={
-            range === "1d" && baseline != null
+          referenceLines={[
+            ...(regularHours && extendedHours
+              ? [regularHours[0], regularHours[1]]
+                  .filter((x) => x > extendedHours[0] && x < extendedHours[1])
+                  .map((x) => ({ x, color: "gray.5", strokeDasharray: "4 4", strokeOpacity: 0.35 }))
+              : []),
+            ...(range === "1d" && baseline != null
               ? [
                   {
                     y: baseline,
@@ -580,11 +610,11 @@ const TickerChart = memo(function TickerChart({
                           fill: "var(--mantine-color-dimmed)",
                           fontSize: 11,
                         },
-                    labelPosition: "insideBottomLeft",
+                    labelPosition: "insideBottomLeft" as const,
                   },
                 ]
-              : []
-          }
+              : []),
+          ]}
           tooltipProps={{
             cursor: { stroke: "var(--mantine-color-dimmed)", strokeWidth: 1 },
             content: ({ payload }) => {
