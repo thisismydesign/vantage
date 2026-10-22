@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { PrivacyProvider } from "./lib/privacy.tsx";
 import { cssVariablesResolver, theme } from "./theme.ts";
 import { Vantage, useHashPage } from "./App.tsx";
+import { Footer } from "./Footer.tsx";
 import { VantageBar } from "./Header.tsx";
 
 import "@mantine/core/styles.css";
@@ -29,8 +30,14 @@ function App() {
         </Box>
       </AppShell.Header>
       {/* viewport-fit=cover draws the page under Android's gesture bar; keep the last row clear of it. */}
-      <AppShell.Main pb="calc(var(--mantine-spacing-md) + env(safe-area-inset-bottom))">
-        <Vantage page={page} />
+      <AppShell.Main
+        pb="calc(var(--mantine-spacing-md) + env(safe-area-inset-bottom))"
+        style={{ display: "flex", flexDirection: "column" }}
+      >
+        <Box style={{ flex: 1 }}>
+          <Vantage page={page} />
+        </Box>
+        <Footer />
       </AppShell.Main>
     </AppShell>
   );
