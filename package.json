@@ -14,7 +14,7 @@
     "build": "vite build app",
     "preview": "vite preview app",
     "db:reset": "supabase db reset && node supabase/seed/dev-account.ts",
-    "deploy": "pnpm run build && cd app && wrangler deploy",
+    "deploy": "pnpm run build && cd app && wrangler deploy --var SUPABASE_URL:$(node --env-file-if-exists=../.env -p process.env.VITE_SUPABASE_URL)",
     "supabase:deploy": "supabase db push && supabase functions deploy --use-api",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

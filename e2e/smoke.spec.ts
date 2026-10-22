@@ -65,6 +65,21 @@ test("serves the agent instructions, the API description and prices", async ({ r
   expect((await request.get(`${API}?range=1d`, { headers })).status()).toBe(400);
 });
 
+test("points agents from the site to its instructions", async ({ page, request }) => {
+  const llms = await request.get("/llms.txt");
+  expect(llms.ok()).toBe(true);
+  expect(llms.headers()["content-type"]).toContain("text/markdown");
+  expect(await llms.text()).toContain("# Vantage for agents");
+  await page.goto("/");
+  await expect(page.locator('head link[rel="alternate"][type="text/markdown"]')).toHaveAttribute(
+    "href",
+    "/llms.txt",
+  );
+  // Only Cloudflare reads _headers.
+  if (process.env.E2E_BASE_URL)
+    expect((await request.get("/")).headers().link).toContain("</llms.txt>");
+});
+
 test("keeps the watchlist function to signed-in callers", async ({ request }) => {
   const headers = { apikey: PUBLISHABLE_KEY ?? "" };
   expect((await request.get(`${WATCHLIST}?range=1d`, { headers })).status()).toBe(401);

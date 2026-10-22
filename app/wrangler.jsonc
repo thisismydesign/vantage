@@ -1,7 +1,12 @@
 {
-  // Cloudflare Worker serving Vantage as static assets.
-  // `pnpm run deploy` builds dist/ and uploads it with wrangler.
+  // Cloudflare Worker serving Vantage as static assets, and /llms.txt from the vantage function.
+  // `pnpm run deploy` builds dist/ and uploads it with wrangler, passing SUPABASE_URL.
   "name": "vantage",
   "compatibility_date": "2026-10-01",
-  "assets": { "directory": "./dist", "not_found_handling": "404-page" }
+  "main": "./worker.ts",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/llms.txt"],
+  },
 }

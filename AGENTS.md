@@ -11,7 +11,7 @@ Portfolio manager.
 ## Layout
 
 ```
-app/                     web app; app/wrangler.jsonc deploys app/dist
+app/                     web app; app/wrangler.jsonc deploys app/dist and worker.ts, which serves /llms.txt
 shared/                  the app–backend contract; see docs/technical.md
 supabase/functions/      vantage (public API, onboarding), watchlist (signed-in prices, lookup), _shared
 supabase/migrations/     schema, policies, grants

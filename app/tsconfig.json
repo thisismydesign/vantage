@@ -18,5 +18,5 @@
       "@shared/*": ["../shared/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "dev-session.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "dev-session.ts", "llms.ts", "worker.ts"]
 }
