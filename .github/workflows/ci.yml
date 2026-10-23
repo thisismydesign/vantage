@@ -57,7 +57,13 @@ jobs:
         with:
           version: 2.109.1
       # GHCR is next to the runners; the default registry, ECR Public, rate-limits shared runner IPs into minutes of retries.
-      - run: supabase start -x studio,imgproxy,postgres-meta,logflare,vector,supavisor,mailpit
+      # GHCR throttles them too, now and then, mid-pull; images pulled before that stay cached, so a retry finishes the rest.
+      - run: |
+          for attempt in 1 2 3; do
+            supabase start -x studio,imgproxy,postgres-meta,logflare,vector,supavisor,mailpit && exit 0
+            [ "$attempt" -lt 3 ] && sleep $((attempt * 30))
+          done
+          exit 1
         env:
           SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
       - run: pnpm install --frozen-lockfile
