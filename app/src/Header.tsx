@@ -2,19 +2,25 @@ import {
   ActionIcon,
   Box,
   Burger,
+  Drawer,
   Group,
-  Menu,
+  NavLink,
   Text,
   UnstyledButton,
   useComputedColorScheme,
   useMantineColorScheme,
 } from "@mantine/core";
 import { IconEye, IconEyeOff, IconMoon, IconSun } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { usePrivacy } from "./lib/privacy.tsx";
 import { PAGES, type Page } from "./App.tsx";
+import { useHashTab } from "./lib/useHashTab.ts";
+import { readLocalState } from "./lib/useLocalState.ts";
 import { Logo } from "./Logo.tsx";
+import { TAB_KEYS, TABS } from "./Portfolio.tsx";
 import { ProfileMenu } from "./Watchlist.tsx";
+
+type Tab = (typeof TABS)[number]["value"];
 
 export function ColorSchemeToggle() {
   const { setColorScheme } = useMantineColorScheme();
@@ -76,30 +82,72 @@ function Nav({ page, onNavigate }: { page: Page; onNavigate: (p: Page) => void }
 
 function BurgerNav({ page, onNavigate }: { page: Page; onNavigate: (p: Page) => void }) {
   const [opened, setOpened] = useState(false);
-  useEffect(() => setOpened(false), [page]);
+  const close = () => setOpened(false);
+  // The back button changes the page under an open menu.
+  useEffect(close, [page]);
+  // A bare #/portfolio opens the stored tab, so the menu marks that one.
+  const [sub, goTab] = useHashTab<Tab | "">("portfolio", TAB_KEYS, "");
+  const stored = readLocalState<Tab>("portfolio:tab", "account");
+  const tab = sub || (TAB_KEYS.includes(stored) ? stored : "account");
   return (
-    <Menu opened={opened} onChange={setOpened} position="bottom-start" shadow="md" width={200}>
-      <Menu.Target>
-        <Burger
-          opened={opened}
-          size="sm"
-          aria-label="Pages"
-          hiddenFrom="sm"
-          onClick={() => setOpened((o) => !o)}
-        />
-      </Menu.Target>
-      <Menu.Dropdown>
+    <>
+      <Burger
+        opened={opened}
+        size="sm"
+        aria-label="Pages"
+        hiddenFrom="sm"
+        onClick={() => setOpened((o) => !o)}
+      />
+      <Drawer
+        opened={opened}
+        onClose={close}
+        position="left"
+        size="xs"
+        title={
+          <Group gap="xs" wrap="nowrap">
+            <Logo size={26} />
+            <Text fw={700} fz="lg" lts={0.5}>
+              Vantage
+            </Text>
+          </Group>
+        }
+      >
         {PAGES.map((p) => (
-          <Menu.Item
-            key={p.value}
-            fw={p.value === page ? 700 : undefined}
-            onClick={() => onNavigate(p.value)}
-          >
-            {p.label}
-          </Menu.Item>
+          <Fragment key={p.value}>
+            <NavLink
+              label={p.label}
+              active={p.value === page}
+              fz="md"
+              fw={600}
+              py="sm"
+              style={{ borderRadius: "var(--mantine-radius-md)" }}
+              onClick={() => {
+                onNavigate(p.value);
+                close();
+              }}
+            />
+            {p.value === "portfolio" &&
+              TABS.map((t) => (
+                <NavLink
+                  key={t.value}
+                  label={t.label}
+                  active={page === "portfolio" && t.value === tab}
+                  variant="light"
+                  fz="sm"
+                  fw={500}
+                  py="xs"
+                  pl="xl"
+                  style={{ borderRadius: "var(--mantine-radius-md)" }}
+                  onClick={() => {
+                    goTab(t.value);
+                    close();
+                  }}
+                />
+              ))}
+          </Fragment>
         ))}
-      </Menu.Dropdown>
-    </Menu>
+      </Drawer>
+    </>
   );
 }
 

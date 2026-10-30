@@ -1,6 +1,5 @@
 import { AreaChart } from "@mantine/charts";
 import {
-  ActionIcon,
   Alert,
   Box,
   Button,
@@ -12,7 +11,6 @@ import {
   LoadingOverlay,
   MultiSelect,
   Paper,
-  Popover,
   RingProgress,
   SegmentedControl,
   SimpleGrid,
@@ -21,8 +19,7 @@ import {
   Text,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { IconAdjustmentsHorizontal } from "@tabler/icons-react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ChartItem,
   ChartRange,
@@ -35,6 +32,8 @@ import { closeTime, RANGE_SOURCE, windowStart, type Bars } from "@shared/ranges.
 import { displayDateTime, signedPct } from "./lib/format.ts";
 import { useLocalState } from "./lib/useLocalState.ts";
 import { GroupSection } from "./components/GroupSection.tsx";
+import { Setting, SettingsMenu } from "./components/Settings.tsx";
+import { Toolbar } from "./components/Toolbar.tsx";
 import { groupColors, TONE } from "./theme.ts";
 import {
   dateTicks,
@@ -731,17 +730,6 @@ function RefreshRing({
   );
 }
 
-function Setting({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Stack gap={6}>
-      <Text size="xs" fw={600} c="dimmed">
-        {label}
-      </Text>
-      {children}
-    </Stack>
-  );
-}
-
 /** `header` is for hosts without the standalone app shell. */
 export function Charts({ header = true }: { header?: boolean }) {
   const [liveUpdates, setLiveUpdates] = useLocalState("charts:liveUpdates", true);
@@ -908,51 +896,45 @@ export function Charts({ header = true }: { header?: boolean }) {
       maxDropdownHeight={280}
     />
   );
-  // Set-and-forget display choices; the toolbar keeps only what changes per glance.
+  // The toolbar keeps only what changes per glance.
   const settings = (
-    <Popover position="bottom-start" shadow="md" width={260} withArrow>
-      <Popover.Target>
-        <ActionIcon variant="default" size="input-xs" aria-label="Chart settings" title="Settings">
-          <IconAdjustmentsHorizontal size={16} />
-        </ActionIcon>
-      </Popover.Target>
-      <Popover.Dropdown p="md">
-        <Stack gap="md">
-          <Setting label="Currency">{baseControl}</Setting>
-          {!list && (
-            <Setting label="Time gaps">
-              <SegmentedControl
-                size="xs"
-                fullWidth
-                value={gaps}
-                onChange={(value) => setGaps(value as Gaps)}
-                data={[
-                  { value: "real", label: "Realistic" },
-                  { value: "short", label: "Short" },
-                ]}
-              />
-            </Setting>
-          )}
-          <Divider />
+    <SettingsMenu label="Chart settings" width={260} position="bottom-start">
+      <Stack gap="md">
+        {mobile && <Setting label="View">{viewControl}</Setting>}
+        <Setting label="Currency">{baseControl}</Setting>
+        {!list && (
+          <Setting label="Time gaps">
+            <SegmentedControl
+              size="xs"
+              fullWidth
+              value={gaps}
+              onChange={(value) => setGaps(value as Gaps)}
+              data={[
+                { value: "real", label: "Realistic" },
+                { value: "short", label: "Short" },
+              ]}
+            />
+          </Setting>
+        )}
+        <Divider />
+        <Switch
+          size="sm"
+          label="Group by theme"
+          checked={grouped}
+          onChange={(e) => setGrouped(e.currentTarget.checked)}
+        />
+        {isIntraday && (
           <Switch
             size="sm"
-            label="Group by theme"
-            checked={grouped}
-            onChange={(e) => setGrouped(e.currentTarget.checked)}
+            label="Live price updates"
+            description={session ? undefined : "Sign in to turn on"}
+            disabled={!session}
+            checked={autoRefresh}
+            onChange={(event) => setLiveUpdates(event.currentTarget.checked)}
           />
-          {isIntraday && (
-            <Switch
-              size="sm"
-              label="Live price updates"
-              description={session ? undefined : "Sign in to turn on"}
-              disabled={!session}
-              checked={autoRefresh}
-              onChange={(event) => setLiveUpdates(event.currentTarget.checked)}
-            />
-          )}
-        </Stack>
-      </Popover.Dropdown>
-    </Popover>
+        )}
+      </Stack>
+    </SettingsMenu>
   );
   const collapseAll = grouped ? (
     <Button
@@ -974,9 +956,8 @@ export function Charts({ header = true }: { header?: boolean }) {
   ) : null;
   const statusText = (
     <Text size="xs" c="dimmed" ta="center" truncate>
-      {shown.length} shown ·{" "}
       {live ? `prices as of ${displayDateTime(live.asOf)}` : "loading prices"}
-      {live && stale ? ", updating" : ""} · times in {LOCAL_TIME_ZONE}
+      {live && stale ? ", updating" : ""}
       {status === "failed" && (
         <Text span c={TONE.warning}>
           {" "}
@@ -1005,45 +986,44 @@ export function Charts({ header = true }: { header?: boolean }) {
   return (
     <Stack gap="md">
       {header && <VantageBar />}
-      {mobile ? (
-        <Stack gap="xs">
-          {!list && rangeControl}
-          <Group gap="xs" wrap="nowrap">
-            <Box style={{ flex: 1 }}>{viewControl}</Box>
-            {settings}
-          </Group>
-          {search}
-          {(collapseAll || refreshRing) && (
-            <Group justify="space-between" gap="xs">
-              {collapseAll ?? <span />}
-              {refreshRing}
-            </Group>
-          )}
-          <Box ta="center">{statusText}</Box>
-        </Stack>
-      ) : (
-        <Stack gap={6}>
-          <Box style={TOOLBAR_ROW}>
+      <Toolbar>
+        {mobile ? (
+          <Stack gap="xs">
+            {!list && rangeControl}
             <Group gap="xs" wrap="nowrap">
-              {viewControl}
+              <Box style={{ flex: 1, minWidth: 0 }}>{search}</Box>
               {settings}
             </Group>
-            <Box w={MIDDLE_WIDTH} maw="100%" style={{ justifySelf: "center" }}>
-              {search}
-            </Box>
-            <Box style={{ justifySelf: "end" }}>{!list && rangeControl}</Box>
-          </Box>
-          <Box style={TOOLBAR_ROW}>
-            <Box>{collapseAll}</Box>
-            <Box w={MIDDLE_WIDTH} maw="100%" style={{ justifySelf: "center" }}>
-              {statusText}
-            </Box>
-            <Box pr={4} style={{ justifySelf: "end" }}>
+            <Group gap="xs" wrap="nowrap">
+              {collapseAll}
+              <Box style={{ flex: 1, minWidth: 0 }}>{statusText}</Box>
               {refreshRing}
+            </Group>
+          </Stack>
+        ) : (
+          <Stack gap={6}>
+            <Box style={TOOLBAR_ROW}>
+              <Group gap="xs" wrap="nowrap">
+                {viewControl}
+                {settings}
+              </Group>
+              <Box w={MIDDLE_WIDTH} maw="100%" style={{ justifySelf: "center" }}>
+                {search}
+              </Box>
+              <Box style={{ justifySelf: "end" }}>{!list && rangeControl}</Box>
             </Box>
-          </Box>
-        </Stack>
-      )}
+            <Box style={TOOLBAR_ROW}>
+              <Box>{collapseAll}</Box>
+              <Box w={MIDDLE_WIDTH} maw="100%" style={{ justifySelf: "center" }}>
+                {statusText}
+              </Box>
+              <Box pr={4} style={{ justifySelf: "end" }}>
+                {refreshRing}
+              </Box>
+            </Box>
+          </Stack>
+        )}
+      </Toolbar>
 
       {!live && status === "failed" && (
         <Alert color={limited ? "yellow" : "red"} title="Prices unavailable">

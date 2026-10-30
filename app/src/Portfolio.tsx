@@ -10,6 +10,7 @@ import {
   Text,
   useMantineTheme,
 } from "@mantine/core";
+import { useEffect } from "react";
 import type { BaseCurrency, ChartsResponse, ChartTheme } from "@shared/api.ts";
 import { Stat } from "./components/Stat.tsx";
 import { NavHistory } from "./NavHistory.tsx";
@@ -21,12 +22,12 @@ import { useLocalState } from "./lib/useLocalState.ts";
 import { groupColors, groupSolid, TONE } from "./theme.ts";
 import type { Built, FillRow, NavRow, Snapshot } from "./lib/broker.ts";
 
-const TABS = [
+export const TABS = [
   { value: "account", label: "Account" },
   { value: "positions", label: "Positions" },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
-const TAB_KEYS = TABS.map((t) => t.value);
+export const TAB_KEYS = TABS.map((t) => t.value);
 
 function AccountView({
   built,
@@ -155,14 +156,13 @@ export function PortfolioPage({
   // A bare #/portfolio reopens the last tab, so the phone lands on the overview it was left on.
   const [last, setLast] = useLocalState<Tab>("portfolio:tab", "account");
   const [tab, go] = useHashTab("portfolio", TAB_KEYS, TAB_KEYS.includes(last) ? last : "account");
+  useEffect(() => setLast(tab), [tab, setLast]);
   return (
     <Tabs
       value={tab}
       onChange={(v) => {
         const next = TABS.find((t) => t.value === v)?.value;
-        if (!next) return;
-        setLast(next);
-        go(next);
+        if (next) go(next);
       }}
       variant="pills"
       radius="xl"

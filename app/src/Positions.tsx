@@ -1,10 +1,8 @@
 import {
-  ActionIcon,
   Box,
   Button,
   Group,
   LoadingOverlay,
-  Popover,
   SegmentedControl,
   SimpleGrid,
   Stack,
@@ -14,18 +12,14 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import {
-  IconAdjustmentsHorizontal,
-  IconChevronDown,
-  IconChevronUp,
-  IconClockHour4,
-  IconSelector,
-} from "@tabler/icons-react";
+import { IconChevronDown, IconChevronUp, IconClockHour4, IconSelector } from "@tabler/icons-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { BaseCurrency, ChartItem, ChartsResponse, ChartTheme } from "@shared/api.ts";
 import { RANGES } from "./Charts.tsx";
 import { GroupSection } from "./components/GroupSection.tsx";
+import { Setting, SettingsMenu } from "./components/Settings.tsx";
 import { Stat } from "./components/Stat.tsx";
+import { Toolbar } from "./components/Toolbar.tsx";
 import { useChartData } from "./lib/api.ts";
 import { resolver, type FillRow, type Snapshot } from "./lib/broker.ts";
 import { displayDate, displayDateTime, pct, signedPct } from "./lib/format.ts";
@@ -72,17 +66,6 @@ function Partial({ openedAt, children }: { openedAt: string | null; children: Re
 const isPeriod = (v: string): v is Period => RANGES.some((r) => r.value === v);
 const apiRange = (period: Period) =>
   period === "1d" ? null : period === "24h" || period === "1w" ? period : "history";
-
-function Setting({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Stack gap={6}>
-      <Text size="xs" fw={600} c="dimmed">
-        {label}
-      </Text>
-      {children}
-    </Stack>
-  );
-}
 
 function SortTh({
   column,
@@ -360,40 +343,10 @@ export function PositionsPage({
       data={RANGES.map((r) => ({ value: r.value, label: r.label }))}
     />
   );
-  const settings = (
-    <Popover position="bottom-end" shadow="md" width={240} withArrow>
-      <Popover.Target>
-        <ActionIcon
-          variant="default"
-          size="input-xs"
-          aria-label="Positions settings"
-          title="Settings"
-        >
-          <IconAdjustmentsHorizontal size={16} />
-        </ActionIcon>
-      </Popover.Target>
-      <Popover.Dropdown p="md">
-        <Stack gap="md">
-          <Setting label="Currency">
-            <SegmentedControl
-              size="xs"
-              fullWidth
-              value={display}
-              onChange={(v) => setDisplay(v as Display)}
-              data={[
-                { value: "EUR", label: "EUR" },
-                { value: "USD", label: "USD" },
-                { value: "native", label: "Native" },
-              ]}
-            />
-          </Setting>
-        </Stack>
-      </Popover.Dropdown>
-    </Popover>
-  );
   const viewControl = (
     <SegmentedControl
       size="xs"
+      fullWidth={compact}
       value={view}
       onChange={(v) => setView(v as typeof view)}
       data={[
@@ -401,6 +354,26 @@ export function PositionsPage({
         { value: "list", label: "List" },
       ]}
     />
+  );
+  const settings = (
+    <SettingsMenu label="Positions settings" width={240} position="bottom-end">
+      <Stack gap="md">
+        {compact && <Setting label="View">{viewControl}</Setting>}
+        <Setting label="Currency">
+          <SegmentedControl
+            size="xs"
+            fullWidth
+            value={display}
+            onChange={(v) => setDisplay(v as Display)}
+            data={[
+              { value: "EUR", label: "EUR" },
+              { value: "USD", label: "USD" },
+              { value: "native", label: "Native" },
+            ]}
+          />
+        </Setting>
+      </Stack>
+    </SettingsMenu>
   );
   const table = (shown: PositionLine[], totals: PositionTotals) => (
     <Box pos="relative">
@@ -448,29 +421,28 @@ export function PositionsPage({
 
   return (
     <Stack gap="sm">
-      {compact ? (
-        <>
-          <Group gap="xs" wrap="nowrap">
-            <Box style={{ flex: 1, minWidth: 0 }}>{periodControl}</Box>
-            {settings}
-          </Group>
-          <Group gap="xs" justify="space-between">
-            {viewControl}
-            {collapseAll}
-          </Group>
-        </>
-      ) : (
-        <Group justify="space-between" gap="xs">
-          <Group gap="xs">
-            {viewControl}
-            {collapseAll}
-          </Group>
-          <Group gap="xs">
+      <Toolbar>
+        {compact ? (
+          <Stack gap="xs">
             {periodControl}
-            {settings}
+            <Group gap="xs" justify="space-between" wrap="nowrap">
+              {collapseAll ?? <span />}
+              {settings}
+            </Group>
+          </Stack>
+        ) : (
+          <Group justify="space-between" gap="xs">
+            <Group gap="xs">
+              {viewControl}
+              {collapseAll}
+            </Group>
+            <Group gap="xs">
+              {periodControl}
+              {settings}
+            </Group>
           </Group>
-        </Group>
-      )}
+        )}
+      </Toolbar>
       {summary}
       {grouped
         ? groups.map((g) => {

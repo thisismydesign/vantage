@@ -30,5 +30,12 @@ export default defineConfig({
   ],
   envDir: resolve(import.meta.dirname, ".."),
   resolve: { alias: { "@shared": resolve(import.meta.dirname, "..", "shared") } },
-  server: { fs: { allow: [resolve(import.meta.dirname, "..")] } },
+  server: {
+    fs: { allow: [resolve(import.meta.dirname, "..")] },
+    // Fixed so sibling projects on this machine never land on each other's port.
+    port: 5175,
+    strictPort: true,
+    // Reviewing a change from a phone goes through the tailnet.
+    allowedHosts: [".ts.net"],
+  },
 });

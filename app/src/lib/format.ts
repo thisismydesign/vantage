@@ -33,8 +33,12 @@ export function daysUntil(iso: string, from = new Date()): number {
 export const displayDate = (iso: string) =>
   iso.replace(/^\d{4}-\d{2}(?:-\d{2})?/, (date) => date.replaceAll("-", "."));
 
+const ZONE = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" });
+
+/** Ends with the browser's zone, so a reader abroad knows whose afternoon it is. */
 export function displayDateTime(iso: string): string {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const zone = ZONE.formatToParts(d).find((p) => p.type === "timeZoneName")?.value;
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}${zone ? ` ${zone}` : ""}`;
 }

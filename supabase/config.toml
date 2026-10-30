@@ -156,7 +156,7 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://localhost:5173"
+site_url = "http://localhost:5175"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
@@ -395,7 +395,7 @@ deno_version = 2
 
 # Local only; the hosted project takes its secrets from `supabase secrets set`.
 [edge_runtime.secrets]
-VANTAGE_SITE_URL = "http://localhost:5173"
+VANTAGE_SITE_URL = "http://localhost:5175"
 # Hosted runtimes list the project's keys as SUPABASE_*_KEYS, which the CLI will not pass locally; these stand in, with its fixed local keys.
 VANTAGE_PUBLISHABLE_KEYS = '{"default":"sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH"}'
 VANTAGE_SECRET_KEYS = '{"default":"sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz"}'
