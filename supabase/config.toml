@@ -400,8 +400,9 @@ VANTAGE_SITE_URL = "http://localhost:5173"
 VANTAGE_PUBLISHABLE_KEYS = '{"default":"sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH"}'
 VANTAGE_SECRET_KEYS = '{"default":"sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz"}'
 
+# Off: its vector container fails its health check on some machines, which aborts `supabase start`; CI skips it too.
 [analytics]
-enabled = true
+enabled = false
 port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
