@@ -9,6 +9,7 @@ import { gain, netFlows, timeWeighted } from "./lib/performance.ts";
 import { cutoff, PERIODS } from "./lib/periods.ts";
 import { usePrivacy, usePrivateMoney } from "./lib/privacy.tsx";
 import { useLocalState } from "./lib/useLocalState.ts";
+import { TouchScrub } from "./components/TouchScrub.tsx";
 import { TONE } from "./theme.ts";
 
 type Row = {
@@ -135,70 +136,72 @@ export function NavHistory({ history, base }: { history: NavRow[]; base: string 
               : "Not enough statements in this period."}
         </Text>
       ) : (
-        <AreaChart
-          h={compact ? 180 : 240}
-          mt="sm"
-          data={rows}
-          dataKey="x"
-          series={[
-            performance
-              ? { name: "ret", color: colour, label: "Performance" }
-              : { name: "nav", color: colour, label: "Account value" },
-          ]}
-          referenceLines={performance ? [{ y: 0, color: TONE.neutral }] : undefined}
-          curveType="linear"
-          withDots={false}
-          strokeWidth={2}
-          withLegend={false}
-          withGradient
-          fillOpacity={0.15}
-          gridAxis="x"
-          strokeDasharray="0"
-          tickLine="none"
-          activeDotProps={{ r: 4, strokeWidth: 2 }}
-          yAxisProps={{
-            domain: [axes.yTicks[0], axes.yTicks.at(-1)!],
-            ticks: axes.yTicks,
-            interval: 0,
-            orientation: "right",
-            width: compact ? 44 : 56,
-            tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
-            tickFormatter: (v: number) =>
-              performance ? signedPct(v, axes.pctDigits) : hidden ? "" : shortMoney(v, base),
-          }}
-          xAxisProps={{
-            type: "number",
-            domain: [rows[0].x, rows.at(-1)!.x],
-            ticks: axes.xTicks,
-            interval: 0,
-            tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
-            tickFormatter: axes.xLabel,
-          }}
-          tooltipProps={{
-            cursor: { stroke: "var(--mantine-color-dimmed)", strokeWidth: 1 },
-            content: ({ payload }) => {
-              const row = (payload?.[0]?.payload ?? null) as Row | null;
-              if (!row) return null;
-              return (
-                <Paper withBorder shadow="sm" px="sm" py={6}>
-                  <Text size="sm" fw={600} style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {performance ? signedPct(row.ret!, 2) : money(row.nav, base)}{" "}
-                    <Text span size="xs" fw={500} c="dimmed">
-                      {performance ? money(row.nav, base) : row.ret != null && signedPct(row.ret)}
+        <TouchScrub>
+          <AreaChart
+            h={compact ? 180 : 240}
+            mt="sm"
+            data={rows}
+            dataKey="x"
+            series={[
+              performance
+                ? { name: "ret", color: colour, label: "Performance" }
+                : { name: "nav", color: colour, label: "Account value" },
+            ]}
+            referenceLines={performance ? [{ y: 0, color: TONE.neutral }] : undefined}
+            curveType="linear"
+            withDots={false}
+            strokeWidth={2}
+            withLegend={false}
+            withGradient
+            fillOpacity={0.15}
+            gridAxis="x"
+            strokeDasharray="0"
+            tickLine="none"
+            activeDotProps={{ r: 4, strokeWidth: 2 }}
+            yAxisProps={{
+              domain: [axes.yTicks[0], axes.yTicks.at(-1)!],
+              ticks: axes.yTicks,
+              interval: 0,
+              orientation: "right",
+              width: compact ? 44 : 56,
+              tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
+              tickFormatter: (v: number) =>
+                performance ? signedPct(v, axes.pctDigits) : hidden ? "" : shortMoney(v, base),
+            }}
+            xAxisProps={{
+              type: "number",
+              domain: [rows[0].x, rows.at(-1)!.x],
+              ticks: axes.xTicks,
+              interval: 0,
+              tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
+              tickFormatter: axes.xLabel,
+            }}
+            tooltipProps={{
+              cursor: { stroke: "var(--mantine-color-dimmed)", strokeWidth: 1 },
+              content: ({ payload }) => {
+                const row = (payload?.[0]?.payload ?? null) as Row | null;
+                if (!row) return null;
+                return (
+                  <Paper withBorder shadow="sm" px="sm" py={6}>
+                    <Text size="sm" fw={600} style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {performance ? signedPct(row.ret!, 2) : money(row.nav, base)}{" "}
+                      <Text span size="xs" fw={500} c="dimmed">
+                        {performance ? money(row.nav, base) : row.ret != null && signedPct(row.ret)}
+                      </Text>
                     </Text>
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {displayDate(row.day)}
-                    {!performance && row.cash != null ? ` · cash ${money(row.cash, base)}` : ""}
-                    {row.flow
-                      ? ` · ${money(Math.abs(row.flow), base)} ${row.flow > 0 ? "deposited" : "withdrawn"}`
-                      : ""}
-                  </Text>
-                </Paper>
-              );
-            },
-          }}
-        />
+                    <Text size="xs" c="dimmed">
+                      {displayDate(row.day)}
+                      {!performance && row.cash != null ? ` · cash ${money(row.cash, base)}` : ""}
+                      {row.flow
+                        ? ` · ${money(Math.abs(row.flow), base)} ${row.flow > 0 ? "deposited" : "withdrawn"}`
+                        : ""}
+                    </Text>
+                  </Paper>
+                );
+              },
+            }}
+          />
+        </TouchScrub>
       )}
     </Card>
   );

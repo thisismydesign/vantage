@@ -14,6 +14,7 @@ import {
 import { useMemo } from "react";
 import type { TradeClose, TradeName, TradesFile } from "./lib/types.ts";
 import { Stat } from "./components/Stat.tsx";
+import { TouchScrub } from "./components/TouchScrub.tsx";
 import { displayDate, pct, signedPct } from "./lib/format.ts";
 import { usePrivacy, usePrivateMoney } from "./lib/privacy.tsx";
 import { useLocalState } from "./lib/useLocalState.ts";
@@ -460,24 +461,26 @@ function ClosesLens({ rows, base }: { rows: TradeClose[]; base: string }) {
             <Text fw={600} mb="xs">
               Cumulative realised P&L
             </Text>
-            <AreaChart
-              h={200}
-              data={cumulative.map((point) => ({ ...point, date: displayDate(point.date) }))}
-              dataKey="date"
-              series={[{ name: "pnl", color: pnlColor(s.pnl), label: "P&L" }]}
-              curveType="stepAfter"
-              withDots={false}
-              strokeWidth={2}
-              withLegend={false}
-              withGradient
-              gridAxis="y"
-              tickLine="none"
-              referenceLines={[{ y: 0, color: TONE.neutral }]}
-              yAxisProps={{ width: hidden ? 0 : 72 }}
-              xAxisProps={{ minTickGap: 48 }}
-              valueFormatter={moneyAxis}
-              tooltipAnimationDuration={0}
-            />
+            <TouchScrub>
+              <AreaChart
+                h={200}
+                data={cumulative.map((point) => ({ ...point, date: displayDate(point.date) }))}
+                dataKey="date"
+                series={[{ name: "pnl", color: pnlColor(s.pnl), label: "P&L" }]}
+                curveType="stepAfter"
+                withDots={false}
+                strokeWidth={2}
+                withLegend={false}
+                withGradient
+                gridAxis="y"
+                tickLine="none"
+                referenceLines={[{ y: 0, color: TONE.neutral }]}
+                yAxisProps={{ width: hidden ? 0 : 72 }}
+                xAxisProps={{ minTickGap: 48 }}
+                valueFormatter={moneyAxis}
+                tooltipAnimationDuration={0}
+              />
+            </TouchScrub>
           </Card>
 
           <SimpleGrid cols={{ base: 1, md: 2 }}>
@@ -485,38 +488,42 @@ function ClosesLens({ rows, base }: { rows: TradeClose[]; base: string }) {
               <Text fw={600} mb="xs">
                 Closes per month
               </Text>
-              <BarChart
-                h={200}
-                data={monthly.map((point) => ({ ...point, month: displayDate(point.month) }))}
-                dataKey="month"
-                series={[{ name: "closes", color: TONE.info, label: "Closes" }]}
-                withLegend={false}
-                gridAxis="y"
-                tickLine="none"
-                yAxisProps={{ allowDecimals: false, width: 32 }}
-                xAxisProps={{ minTickGap: 24 }}
-                tooltipAnimationDuration={0}
-              />
+              <TouchScrub>
+                <BarChart
+                  h={200}
+                  data={monthly.map((point) => ({ ...point, month: displayDate(point.month) }))}
+                  dataKey="month"
+                  series={[{ name: "closes", color: TONE.info, label: "Closes" }]}
+                  withLegend={false}
+                  gridAxis="y"
+                  tickLine="none"
+                  yAxisProps={{ allowDecimals: false, width: 32 }}
+                  xAxisProps={{ minTickGap: 24 }}
+                  tooltipAnimationDuration={0}
+                />
+              </TouchScrub>
             </Card>
             <Card withBorder padding="sm">
               <Text fw={600} mb="xs">
                 Realised P&L per month
               </Text>
-              <BarChart
-                h={200}
-                data={monthly.map((point) => ({ ...point, month: displayDate(point.month) }))}
-                dataKey="month"
-                series={[{ name: "pnl", color: TONE.positive, label: "P&L" }]}
-                getBarColor={(v) => pnlColor(v)}
-                withLegend={false}
-                gridAxis="y"
-                tickLine="none"
-                referenceLines={[{ y: 0, color: TONE.neutral }]}
-                yAxisProps={{ width: hidden ? 0 : 72 }}
-                xAxisProps={{ minTickGap: 24 }}
-                valueFormatter={moneyAxis}
-                tooltipAnimationDuration={0}
-              />
+              <TouchScrub>
+                <BarChart
+                  h={200}
+                  data={monthly.map((point) => ({ ...point, month: displayDate(point.month) }))}
+                  dataKey="month"
+                  series={[{ name: "pnl", color: TONE.positive, label: "P&L" }]}
+                  getBarColor={(v) => pnlColor(v)}
+                  withLegend={false}
+                  gridAxis="y"
+                  tickLine="none"
+                  referenceLines={[{ y: 0, color: TONE.neutral }]}
+                  yAxisProps={{ width: hidden ? 0 : 72 }}
+                  xAxisProps={{ minTickGap: 24 }}
+                  valueFormatter={moneyAxis}
+                  tooltipAnimationDuration={0}
+                />
+              </TouchScrub>
             </Card>
           </SimpleGrid>
 
@@ -525,23 +532,25 @@ function ClosesLens({ rows, base }: { rows: TradeClose[]; base: string }) {
               <Text fw={600} mb="xs">
                 Return distribution
               </Text>
-              <BarChart
-                h={200}
-                data={histogram(rows)}
-                dataKey="bin"
-                type="stacked"
-                series={[
-                  { name: "losses", color: TONE.negative, label: "Losses" },
-                  { name: "wins", color: TONE.positive, label: "Wins" },
-                ]}
-                withLegend
-                legendProps={{ verticalAlign: "bottom" }}
-                gridAxis="y"
-                tickLine="none"
-                yAxisProps={{ allowDecimals: false, width: 32 }}
-                xAxisProps={{ minTickGap: 12 }}
-                tooltipAnimationDuration={0}
-              />
+              <TouchScrub>
+                <BarChart
+                  h={200}
+                  data={histogram(rows)}
+                  dataKey="bin"
+                  type="stacked"
+                  series={[
+                    { name: "losses", color: TONE.negative, label: "Losses" },
+                    { name: "wins", color: TONE.positive, label: "Wins" },
+                  ]}
+                  withLegend
+                  legendProps={{ verticalAlign: "bottom" }}
+                  gridAxis="y"
+                  tickLine="none"
+                  yAxisProps={{ allowDecimals: false, width: 32 }}
+                  xAxisProps={{ minTickGap: 12 }}
+                  tooltipAnimationDuration={0}
+                />
+              </TouchScrub>
               <Text size="xs" c="dimmed">
                 Net return per close, {Math.round(BIN * 100)}% bins.
               </Text>

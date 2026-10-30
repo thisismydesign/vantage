@@ -32,6 +32,7 @@ import { closeTime, RANGE_SOURCE, windowStart, type Bars } from "@shared/ranges.
 import { displayDateTime, signedPct } from "./lib/format.ts";
 import { useLocalState } from "./lib/useLocalState.ts";
 import { GroupSection } from "./components/GroupSection.tsx";
+import { TouchScrub } from "./components/TouchScrub.tsx";
 import { Setting, SettingsMenu } from "./components/Settings.tsx";
 import { Toolbar } from "./components/Toolbar.tsx";
 import { groupColors, TONE } from "./theme.ts";
@@ -539,131 +540,133 @@ const TickerChart = memo(function TickerChart({
           No prices available for this period.
         </Text>
       ) : (
-        <AreaChart
-          h={compact ? 110 : 240}
-          withXAxis
-          withYAxis
-          data={plotted}
-          dataKey="x"
-          series={[
-            ...(split
-              ? [
-                  { name: "regular", color: colour, label: ticker },
-                  { name: "extended", color: colour, label: ticker },
-                ]
-              : [{ name: "value", color: colour, label: ticker }]),
-            ...(rows.some((r) => r.bridge != null)
-              ? [{ name: "bridge", color: colour, strokeDasharray: "3 3" }]
-              : []),
-          ]}
-          areaProps={(series) =>
-            series.name === "bridge"
-              ? { fill: "none", strokeOpacity: 0.45, strokeWidth: 1.5, activeDot: false }
-              : series.name === "extended"
-                ? { strokeOpacity: 0.4, fillOpacity: 0.4 }
-                : {}
-          }
-          curveType="linear"
-          withDots={false}
-          strokeWidth={2}
-          withLegend={false}
-          withGradient
-          connectNulls={false}
-          fillOpacity={0.15}
-          gridAxis="x"
-          strokeDasharray="0"
-          tickLine="none"
-          activeDotProps={{ r: 4, strokeWidth: 2 }}
-          yAxisProps={{
-            domain: axes.yDomain,
-            ticks: axes.yTicks,
-            interval: 0,
-            orientation: "right",
-            width: compact ? 40 : 56,
-            tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
-            tickFormatter: yLabel,
-          }}
-          xAxisProps={{
-            type: "number",
-            domain: axes.xDomain,
-            ticks: axes.xTicks,
-            allowDataOverflow: true,
-            interval: 0,
-            tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
-            tickFormatter: axes.xLabel,
-          }}
-          referenceAreas={
-            regularHours && extendedHours
-              ? (
-                  [
-                    [extendedHours[0], regularHours[0], "Pre-market"],
-                    [regularHours[1], extendedHours[1], "After hours"],
-                  ] as const
-                )
-                  .filter(([from, to]) => to > from)
-                  .map(([x1, x2, name]) => ({
-                    x1,
-                    x2,
-                    fillOpacity: 0,
-                    strokeOpacity: 0,
-                    ifOverflow: "hidden" as const,
-                    label: compact
-                      ? undefined
-                      : { value: name, fill: "var(--mantine-color-dimmed)", fontSize: 11 },
-                    labelPosition: "insideTop" as const,
-                  }))
-              : []
-          }
-          referenceLines={[
-            ...separators.map((x) => ({
-              x,
-              color: "gray.5",
-              strokeDasharray: "4 4",
-              strokeOpacity: 0.35,
-            })),
-            ...(range === "1d" && baseline != null
-              ? [
-                  {
-                    y: baseline,
-                    strokeDasharray: "3 3",
-                    color: TONE.neutral,
-                    label: compact
-                      ? undefined
-                      : {
-                          value: `Prev close ${price(baseline)}`,
-                          fill: "var(--mantine-color-dimmed)",
-                          fontSize: 11,
-                        },
-                    labelPosition: "insideBottomLeft" as const,
-                  },
-                ]
-              : []),
-          ]}
-          tooltipProps={{
-            cursor: { stroke: "var(--mantine-color-dimmed)", strokeWidth: 1 },
-            content: ({ payload }) => {
-              const hovered = (payload?.[0]?.payload ?? null) as Row | null;
-              const row = hovered?.value == null ? previousCloseRow : hovered;
-              if (row?.value == null) return null;
-              const move = baseline ? row.value / baseline - 1 : null;
-              return (
-                <Paper withBorder shadow="sm" px="sm" py={6}>
-                  <Text size="sm" fw={600} style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {money(row.value, currency)}{" "}
-                    {move != null && (
-                      <Text span size="xs" fw={500} c={colour}>
-                        {signedPct(move)}
-                      </Text>
-                    )}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {axes.rowLabel(row)}
-                  </Text>
-                </Paper>
-              );
-            },
-          }}
-        />
+        <TouchScrub>
+          <AreaChart
+            h={compact ? 110 : 240}
+            withXAxis
+            withYAxis
+            data={plotted}
+            dataKey="x"
+            series={[
+              ...(split
+                ? [
+                    { name: "regular", color: colour, label: ticker },
+                    { name: "extended", color: colour, label: ticker },
+                  ]
+                : [{ name: "value", color: colour, label: ticker }]),
+              ...(rows.some((r) => r.bridge != null)
+                ? [{ name: "bridge", color: colour, strokeDasharray: "3 3" }]
+                : []),
+            ]}
+            areaProps={(series) =>
+              series.name === "bridge"
+                ? { fill: "none", strokeOpacity: 0.45, strokeWidth: 1.5, activeDot: false }
+                : series.name === "extended"
+                  ? { strokeOpacity: 0.4, fillOpacity: 0.4 }
+                  : {}
+            }
+            curveType="linear"
+            withDots={false}
+            strokeWidth={2}
+            withLegend={false}
+            withGradient
+            connectNulls={false}
+            fillOpacity={0.15}
+            gridAxis="x"
+            strokeDasharray="0"
+            tickLine="none"
+            activeDotProps={{ r: 4, strokeWidth: 2 }}
+            yAxisProps={{
+              domain: axes.yDomain,
+              ticks: axes.yTicks,
+              interval: 0,
+              orientation: "right",
+              width: compact ? 40 : 56,
+              tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
+              tickFormatter: yLabel,
+            }}
+            xAxisProps={{
+              type: "number",
+              domain: axes.xDomain,
+              ticks: axes.xTicks,
+              allowDataOverflow: true,
+              interval: 0,
+              tick: { fontSize: compact ? 10 : 12, fill: "var(--mantine-color-dimmed)" },
+              tickFormatter: axes.xLabel,
+            }}
+            referenceAreas={
+              regularHours && extendedHours
+                ? (
+                    [
+                      [extendedHours[0], regularHours[0], "Pre-market"],
+                      [regularHours[1], extendedHours[1], "After hours"],
+                    ] as const
+                  )
+                    .filter(([from, to]) => to > from)
+                    .map(([x1, x2, name]) => ({
+                      x1,
+                      x2,
+                      fillOpacity: 0,
+                      strokeOpacity: 0,
+                      ifOverflow: "hidden" as const,
+                      label: compact
+                        ? undefined
+                        : { value: name, fill: "var(--mantine-color-dimmed)", fontSize: 11 },
+                      labelPosition: "insideTop" as const,
+                    }))
+                : []
+            }
+            referenceLines={[
+              ...separators.map((x) => ({
+                x,
+                color: "gray.5",
+                strokeDasharray: "4 4",
+                strokeOpacity: 0.35,
+              })),
+              ...(range === "1d" && baseline != null
+                ? [
+                    {
+                      y: baseline,
+                      strokeDasharray: "3 3",
+                      color: TONE.neutral,
+                      label: compact
+                        ? undefined
+                        : {
+                            value: `Prev close ${price(baseline)}`,
+                            fill: "var(--mantine-color-dimmed)",
+                            fontSize: 11,
+                          },
+                      labelPosition: "insideBottomLeft" as const,
+                    },
+                  ]
+                : []),
+            ]}
+            tooltipProps={{
+              cursor: { stroke: "var(--mantine-color-dimmed)", strokeWidth: 1 },
+              content: ({ payload }) => {
+                const hovered = (payload?.[0]?.payload ?? null) as Row | null;
+                const row = hovered?.value == null ? previousCloseRow : hovered;
+                if (row?.value == null) return null;
+                const move = baseline ? row.value / baseline - 1 : null;
+                return (
+                  <Paper withBorder shadow="sm" px="sm" py={6}>
+                    <Text size="sm" fw={600} style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {money(row.value, currency)}{" "}
+                      {move != null && (
+                        <Text span size="xs" fw={500} c={colour}>
+                          {signedPct(move)}
+                        </Text>
+                      )}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {axes.rowLabel(row)}
+                    </Text>
+                  </Paper>
+                );
+              },
+            }}
+          />
+        </TouchScrub>
       )}
     </Card>
   );

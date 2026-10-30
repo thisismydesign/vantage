@@ -19,6 +19,7 @@ import type { Snapshot } from "../lib/broker.ts";
 import { displayDate, pct } from "../lib/format.ts";
 import { usePrivateMoney } from "../lib/privacy.tsx";
 import { useLocalState } from "../lib/useLocalState.ts";
+import { TouchScrub } from "../components/TouchScrub.tsx";
 import { TONE } from "../theme.ts";
 
 const GLOSSARY: [string, string][] = [
@@ -258,18 +259,20 @@ export function MarginSizing({ snapshot }: { snapshot: Snapshot }) {
           correlated line uses your {pct(corr, 0)} assumption; the bet-only line ignores
           existing-book moves.
         </Text>
-        <LineChart
-          h={260}
-          data={chartData}
-          dataKey="drop"
-          withLegend
-          valueFormatter={(v) => eur(v)}
-          series={[
-            { name: "correlated", label: `EL (corr ${pct(corr, 0)})`, color: TONE.info },
-            { name: "betOnly", label: "EL (bet only)", color: TONE.neutral },
-            { name: "floor", label: "Liquidation floor", color: TONE.negative },
-          ]}
-        />
+        <TouchScrub>
+          <LineChart
+            h={260}
+            data={chartData}
+            dataKey="drop"
+            withLegend
+            valueFormatter={(v) => eur(v)}
+            series={[
+              { name: "correlated", label: `EL (corr ${pct(corr, 0)})`, color: TONE.info },
+              { name: "betOnly", label: "EL (bet only)", color: TONE.neutral },
+              { name: "floor", label: "Liquidation floor", color: TONE.negative },
+            ]}
+          />
+        </TouchScrub>
       </Stack>
 
       <Stack gap={4}>
