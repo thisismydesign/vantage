@@ -26,6 +26,11 @@ test("windowStart counts calendar months back, YTD from January 1st", () => {
   assert.equal(day(windowStart("ytd", now)), "2026-01-01");
 });
 
+test("windowStart clamps to the month's last day instead of overflowing", () => {
+  assert.equal(day(windowStart("1m", Date.UTC(2026, 2, 31, 12))), "2026-02-28");
+  assert.equal(day(windowStart("1y", Date.UTC(2024, 1, 29, 12))), "2023-02-28");
+});
+
 test("closeTime puts a daily close at the end of its day and a weekly one on Friday", () => {
   assert.equal(closeTime("2026-10-15", "daily"), Date.UTC(2026, 9, 16));
   assert.equal(closeTime("2026-10-12", "weekly"), Date.UTC(2026, 9, 17));
@@ -44,6 +49,20 @@ test("cutRange leads with the close before the window and drops what is older", 
   assert.ok(closeTime(cut[1][0], "daily") >= start, "second point is inside the window");
   assert.equal(cut.at(-1)?.[1], 399);
   assert.ok(cut.length >= 50 && cut.length < 100);
+});
+
+test("cutRange's YTD baseline is the last close of the old year", () => {
+  const now = Date.UTC(2026, 0, 16, 12);
+  const daily: [string, number][] = [
+    ["2025-12-30", 1],
+    ["2025-12-31", 2],
+    ["2026-01-02", 3],
+    ["2026-01-05", 4],
+  ];
+  assert.deepEqual(
+    cutRange(daily, "ytd", now).map(([key]) => key),
+    ["2025-12-31", "2026-01-02", "2026-01-05"],
+  );
 });
 
 test("cutRange is empty for a listing with no bars inside the window", () => {

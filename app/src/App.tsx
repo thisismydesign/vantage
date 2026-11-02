@@ -84,6 +84,11 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
         </Text>
       </Group>
     );
+  const unavailable = broker.error && (
+    <Alert color="red" title="Broker data unavailable">
+      {broker.error}
+    </Alert>
+  );
   const stale = charts.status === "failed" && (
     <Alert color="yellow" py="xs" mb="md">
       <Text size="sm">
@@ -94,9 +99,11 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
   if (page === "portfolio") {
     if (!built)
       return (
-        <Alert title="No statement yet">
-          Your agent sends broker statements through the API; the latest one shows here.
-        </Alert>
+        unavailable || (
+          <Alert title="No statement yet">
+            Your agent sends broker statements through the API; the latest one shows here.
+          </Alert>
+        )
       );
     return (
       <>
@@ -116,9 +123,11 @@ function BrokerPages({ page }: { page: "portfolio" | "trades" }) {
   }
   if (!trades)
     return (
-      <Alert title="No trades yet">
-        Your agent sends your fills through the API; they show here.
-      </Alert>
+      unavailable || (
+        <Alert title="No trades yet">
+          Your agent sends your fills through the API; they show here.
+        </Alert>
+      )
     );
   return (
     <>

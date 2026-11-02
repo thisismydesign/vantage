@@ -1,3 +1,6 @@
+import type { HistoryRange } from "@shared/api.ts";
+import { HISTORY_RANGES, windowStart } from "@shared/ranges.ts";
+
 export const PERIODS = [
   { value: "all", label: "All" },
   { value: "1y", label: "1Y" },
@@ -8,10 +11,6 @@ export const PERIODS = [
 
 /** YYYY-MM-DD; empty means no cutoff. */
 export function cutoff(period: string): string {
-  const now = new Date();
-  if (period === "ytd") return `${now.getUTCFullYear()}-01-01`;
-  const months = { "1y": 12, "6m": 6, "3m": 3 }[period];
-  if (!months) return "";
-  now.setUTCMonth(now.getUTCMonth() - months);
-  return now.toISOString().slice(0, 10);
+  if (!(HISTORY_RANGES as string[]).includes(period)) return "";
+  return new Date(windowStart(period as HistoryRange, Date.now())).toISOString().slice(0, 10);
 }

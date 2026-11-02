@@ -18,6 +18,12 @@ export interface Chart {
 
 const OUTSIDE_HOURS_MS = 3_600_000;
 
+/** YYYY-MM-DD in the exchange's zone. */
+export function exchangeDay(timeZone: string) {
+  const format = new Intl.DateTimeFormat("en-CA", { timeZone });
+  return (date: Date | string) => format.format(new Date(date));
+}
+
 /**
  * Yahoo's regular hours can end before a closing auction (Seoul, London), so only a listing that trades well beyond them gets `periods`.
  * Otherwise `early` and `late` stretch them over the prints just outside.
@@ -42,8 +48,7 @@ export function regularHours(chart: Chart) {
 
 export function latestSession(ticker: string, chart: Chart, sessionCount = 1): IntradaySeries {
   const timeZone = chart.meta.exchangeTimezoneName;
-  const dayFormat = new Intl.DateTimeFormat("en-CA", { timeZone });
-  const day = (date: string) => dayFormat.format(new Date(date));
+  const day = exchangeDay(timeZone);
   const points = chart.quotes
     .filter((q) => q.close !== null && Number.isFinite(q.close))
     .map((q): [string, number] => [new Date(q.date).toISOString(), q.close!])

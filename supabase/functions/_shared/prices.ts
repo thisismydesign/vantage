@@ -1,4 +1,4 @@
-import { intradayRange, type Chart } from "./intraday.ts";
+import { exchangeDay, intradayRange, type Chart } from "./intraday.ts";
 import { convert, convertSeries, type RateBook, type RateSeries } from "./fx.ts";
 import { buildRanges, thin } from "./history.ts";
 import { db } from "./db.ts";
@@ -23,6 +23,7 @@ export const TTL_MS: Record<ChartRange, number> = {
   "1w": 60_000,
   history: 6 * 3_600_000,
 };
+// Yahoo requests in flight; a history fetch is three of them.
 const CONCURRENCY = 6;
 const DAY_MS = 86_400_000;
 
@@ -100,10 +101,12 @@ async function yahooChart(
   };
 }
 
-const bars = (chart: Chart, dateOnly: boolean): [string, number][] =>
-  chart.quotes
+const bars = (chart: Chart, dateOnly: boolean): [string, number][] => {
+  const day = exchangeDay(chart.meta.exchangeTimezoneName);
+  return chart.quotes
     .filter((q) => typeof q.close === "number")
-    .map((q) => [dateOnly ? String(q.date).slice(0, 10) : String(q.date), q.close as number]);
+    .map((q) => [dateOnly ? day(q.date) : String(q.date), q.close as number]);
+};
 const closes = (chart: Chart) => bars(chart, true);
 
 // Enough for the longest horizon on each bar size.
@@ -113,27 +116,31 @@ const WEEKLY_DAYS = 5.2 * 365;
 
 async function history(symbol: string): Promise<VantageHistory> {
   const now = Date.now();
-  const attempt = async (fn: () => Promise<[string, number][]>) => {
+  type Fetched = { points: [string, number][]; currency?: string };
+  const attempt = async (fn: () => Promise<Fetched>): Promise<Fetched> => {
     try {
       return await fn();
     } catch {
-      return [] as [string, number][];
+      return { points: [] };
     }
   };
-  let currency: string | undefined;
-  const daily = await attempt(async () => {
-    const chart = await yahooChart(symbol, { from: now - DAILY_DAYS * DAY_MS, interval: "1d" });
-    currency = chart.meta.currency;
-    return closes(chart);
-  });
-  const weekly = await attempt(async () =>
-    closes(await yahooChart(symbol, { from: now - WEEKLY_DAYS * DAY_MS, interval: "1wk" })),
+  const fetchBars = (days: number, interval: string, dateOnly: boolean) =>
+    attempt(async () => {
+      const chart = await yahooChart(symbol, { from: now - days * DAY_MS, interval });
+      return { points: bars(chart, dateOnly), currency: chart.meta.currency };
+    });
+  const [daily, weekly, hourly] = await Promise.all([
+    fetchBars(DAILY_DAYS, "1d", true),
+    fetchBars(WEEKLY_DAYS, "1wk", true),
+    fetchBars(HOURLY_DAYS, "1h", false),
+  ]);
+  const currency = daily.currency ?? weekly.currency ?? hourly.currency;
+  if (!daily.points.length && !weekly.points.length && !hourly.points.length)
+    throw new Error("No history returned");
+  const cut = buildRanges(
+    { hourly: hourly.points, daily: daily.points, weekly: weekly.points },
+    now,
   );
-  const hourly = await attempt(async () =>
-    bars(await yahooChart(symbol, { from: now - HOURLY_DAYS * DAY_MS, interval: "1h" }), false),
-  );
-  if (!daily.length && !weekly.length && !hourly.length) throw new Error("No history returned");
-  const cut = buildRanges({ hourly, daily, weekly }, now);
   const ranges = Object.fromEntries(
     HISTORY_RANGES.map((r) => [r, { points: cut[r] } satisfies RangeSeries]),
   ) as Record<HistoryRange, RangeSeries>;
@@ -148,12 +155,10 @@ async function fxRates(currency: string, range: ChartRange) {
   const now = Date.now();
   if (range === "history") {
     // Hourly bars convert at their day's rate: a date key sorts before that day's times, so the daily book serves them.
-    const daily = closes(
-      await yahooChart(symbol, { from: now - DAILY_DAYS * DAY_MS, interval: "1d" }),
-    );
-    const weekly = closes(
-      await yahooChart(symbol, { from: now - WEEKLY_DAYS * DAY_MS, interval: "1wk" }),
-    );
+    const [daily, weekly] = await Promise.all([
+      yahooChart(symbol, { from: now - DAILY_DAYS * DAY_MS, interval: "1d" }).then(closes),
+      yahooChart(symbol, { from: now - WEEKLY_DAYS * DAY_MS, interval: "1wk" }).then(closes),
+    ]);
     return { daily, weekly };
   }
   const chart = await yahooChart(symbol, {
@@ -244,12 +249,21 @@ async function pool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>)
 export async function prices(range: ChartRange, list: List): Promise<ChartsResponse> {
   const { themes, items } = list;
   const symbols = [...new Set(items.map((i) => i.quote_symbol).filter((s): s is string => !!s))];
-  const cached = await db.from("chart_cache").select("*").eq("range", range);
-  if (cached.error) throw new Error(cached.error.message);
+  const [cachedSymbols, cachedFx] = await Promise.all([
+    db.from("chart_cache").select("*").eq("range", range).in("symbol", symbols),
+    db.from("chart_cache").select("*").eq("range", range).like("symbol", `${FX_PREFIX}%`),
+  ]);
+  if (cachedSymbols.error) throw new Error(cachedSymbols.error.message);
+  if (cachedFx.error) throw new Error(cachedFx.error.message);
 
   const now = Date.now();
   const ttl = TTL_MS[range];
-  const cache = new Map((cached.data as CacheRow[]).map((row) => [row.symbol, row]));
+  const cache = new Map(
+    [...(cachedSymbols.data as CacheRow[]), ...(cachedFx.data as CacheRow[])].map((row) => [
+      row.symbol,
+      row,
+    ]),
+  );
   // Rows written by older builds may have another shape or a shorter span.
   const usable = (row: CacheRow) => {
     if (range !== "history") return true;
@@ -263,8 +277,10 @@ export async function prices(range: ChartRange, list: List): Promise<ChartsRespo
   const stale = symbols.filter((symbol) => expired(cache.get(symbol)));
 
   const errors: Record<string, string> = {};
-  const fetched = await pool(stale, CONCURRENCY, (symbol): Promise<Series> =>
-    range === "history" ? history(symbol) : intraday(symbol, range),
+  const fetched = await pool(
+    stale,
+    range === "history" ? CONCURRENCY / 3 : CONCURRENCY,
+    (symbol): Promise<Series> => (range === "history" ? history(symbol) : intraday(symbol, range)),
   );
   const fresh = fetched.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
   const currencies = [...new Set([...fresh.map((d) => d.currency), ...BASES])].filter(

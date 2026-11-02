@@ -20,7 +20,9 @@ export function windowStart(range: HistoryRange, end: number): number {
   const d = new Date(end);
   const { months } = RANGE_SOURCE[range];
   if (!months) return Date.UTC(d.getUTCFullYear(), 0, 1);
-  d.setUTCMonth(d.getUTCMonth() - months);
+  const month = d.getUTCMonth() - months;
+  const lastDay = new Date(Date.UTC(d.getUTCFullYear(), month + 1, 0)).getUTCDate();
+  d.setUTCMonth(month, Math.min(d.getUTCDate(), lastDay));
   return d.getTime();
 }
 

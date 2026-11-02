@@ -743,7 +743,9 @@ export function Charts({ header = true }: { header?: boolean }) {
   const compact = view === "compact";
   const list = view === "list";
   const [base, setBase] = useLocalState<Display>("charts:base", "EUR");
-  const [range, setRange] = useLocalState("charts:range:v2", "1d");
+  const [storedRange, setRange] = useLocalState("charts:range:v2", "1d");
+  const activeRange = RANGES.find((r) => r.value === storedRange) ?? RANGES[0];
+  const range = activeRange.value;
   const [selected, setSelected] = useLocalState<string[]>("charts:tickers", []);
   const [grouped, setGrouped] = useLocalState("charts:grouped", true);
   const [gaps, setGaps] = useLocalState<Gaps>("charts:gaps", "real");
@@ -780,7 +782,6 @@ export function Charts({ header = true }: { header?: boolean }) {
     return () => window.removeEventListener(WATCHLIST_CHANGED, changed);
   }, [refresh]);
 
-  const activeRange = RANGES.find((r) => r.value === range) ?? RANGES[0];
   const apiRange: ChartRange = list ? "1d" : isIntraday ? (range as ChartRange) : "history";
   const { data, status, limited, updating, stale } = useChartData(apiRange, cycle, session);
   const week = useChartData(list ? "1w" : null, cycle, session);

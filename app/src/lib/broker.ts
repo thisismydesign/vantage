@@ -76,19 +76,20 @@ const EMPTY: BrokerData = { snapshot: null, history: [], fills: [], loading: fal
 
 export function useBrokerData(session: SessionState): BrokerData {
   const [data, setData] = useState<BrokerData>(EMPTY);
+  const owner = session === undefined ? undefined : (session?.user.id ?? null);
   useEffect(() => {
-    if (session === undefined) {
+    if (owner === undefined) {
       setData({ ...EMPTY, loading: true });
       return;
     }
-    if (!session || !supabase) {
+    if (!owner || !supabase) {
       setData(demoBroker());
       return;
     }
     let disposed = false;
     setData((d) => ({ ...d, loading: true }));
     (async () => {
-      const snapshot = await supabase
+      const latestSnapshot = supabase
         .from("portfolio_snapshots")
         .select(
           `as_of,account_id,base_currency,nav,cash,fetched_at,positions:snapshot_positions(${POSITION_COLUMNS})`,
@@ -108,7 +109,8 @@ export function useBrokerData(session: SessionState): BrokerData {
           if ((page.data?.length ?? 0) < 1000) return rows;
         }
       };
-      const [history, fills] = await Promise.all([
+      const [snapshot, history, fills] = await Promise.all([
+        latestSnapshot,
         all<NavRow>("nav_history", "as_of,nav,cash,flow", ["as_of"]),
         all<FillRow>("trade_fills", FILL_COLUMNS, ["traded_at", "id"]),
       ]);
@@ -126,7 +128,7 @@ export function useBrokerData(session: SessionState): BrokerData {
     return () => {
       disposed = true;
     };
-  }, [session]);
+  }, [owner]);
   return data;
 }
 
@@ -280,7 +282,6 @@ export function buildPortfolio(
             share: total ? value / total : 0,
           }))
           .sort((a, b) => b.value - a.value),
-        bySource: [{ source: "ibkr", value: total }],
       },
       watchOnly: items.filter((i) => !held.has(i.ticker)).map((i) => i.ticker),
       warnings: [...new Set(warnings)],
@@ -379,7 +380,6 @@ export function buildTrades(rows: FillRow[], items: ChartItem[], base: BaseCurre
     roundTrips,
     closes,
     names,
-    sources: [],
     warnings,
   };
 }

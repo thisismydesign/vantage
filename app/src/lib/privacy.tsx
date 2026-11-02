@@ -26,20 +26,3 @@ export function usePrivateMoney() {
     return `${symbol}${MASK}`;
   };
 }
-
-/** For portfolio-relative percentages; price-relative ones stay visible. */
-export function usePrivateText() {
-  const { hidden } = usePrivacy();
-  return (text: string) => (hidden ? MASK : text);
-}
-
-/**
- * Only the base currency: digests also quote public figures (capex, price targets, deal sizes) in the instrument's currency, which reveal nothing about the account.
- */
-export function maskAmounts(markdown: string, symbol = "€"): string {
-  const escapedSymbol = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return markdown.replace(new RegExp(`(-|−)?${escapedSymbol}\\s?\\d[\\d,.]*`, "g"), (amount) => {
-    const sign = amount.startsWith("-") || amount.startsWith("−") ? amount[0] : "";
-    return `${sign}${symbol}${MASK}`;
-  });
-}

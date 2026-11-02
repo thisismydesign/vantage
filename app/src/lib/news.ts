@@ -4,8 +4,6 @@ import { demoNews } from "./demo/index.ts";
 import { supabase, type SessionState } from "./supabase.ts";
 import { TONE } from "../theme.ts";
 
-export const NEWS_CHANGED = "vantage:news-changed";
-
 export const SENTIMENT_COLOR: Record<Sentiment, string> = {
   positive: TONE.positive,
   negative: TONE.negative,
@@ -17,18 +15,13 @@ export type NewsData = { items: NewsItem[]; loading: boolean; error?: string };
 
 export function useNews(session: SessionState): NewsData {
   const [data, setData] = useState<NewsData>({ items: [], loading: false });
-  const [version, setVersion] = useState(0);
+  const owner = session === undefined ? undefined : (session?.user.id ?? null);
   useEffect(() => {
-    const bump = () => setVersion((v) => v + 1);
-    window.addEventListener(NEWS_CHANGED, bump);
-    return () => window.removeEventListener(NEWS_CHANGED, bump);
-  }, []);
-  useEffect(() => {
-    if (session === undefined) {
+    if (owner === undefined) {
       setData({ items: [], loading: true });
       return;
     }
-    if (!session || !supabase) {
+    if (!owner || !supabase) {
       setData({ items: demoNews(), loading: false });
       return;
     }
@@ -53,6 +46,6 @@ export function useNews(session: SessionState): NewsData {
     return () => {
       disposed = true;
     };
-  }, [session, version]);
+  }, [owner]);
   return data;
 }

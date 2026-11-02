@@ -105,9 +105,9 @@ export async function addItem(db: SupabaseClient, owner: string, item: ItemInput
   let symbol = item.symbol?.trim();
   let name = item.name?.trim();
   if (!symbol || !name) {
-    const found = await resolveSymbol(symbol ?? ticker);
-    symbol ??= found.symbol;
-    name ??= found.name;
+    const found = await resolveSymbol(symbol || ticker);
+    symbol ||= found.symbol;
+    name ||= found.name;
   }
   const { count } = await db
     .from("watchlist")
@@ -120,7 +120,6 @@ export async function addItem(db: SupabaseClient, owner: string, item: ItemInput
     quote_symbol: symbol,
     currency: item.currency ?? null,
     themes: item.groups ?? [],
-    aliases: [],
     disabled: false,
     position: count ?? 0,
   };

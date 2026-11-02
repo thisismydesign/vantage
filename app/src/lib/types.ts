@@ -37,7 +37,6 @@ export interface Portfolio {
     costBasis: number;
     costBasisCoverage: number;
     byTheme: { theme: string; label: string; value: number; share: number }[];
-    bySource: { source: PositionSource; value: number }[];
   };
   watchOnly: string[];
   warnings: string[];
@@ -168,6 +167,5 @@ export interface TradesFile {
   roundTrips: RoundTrip[];
   closes: TradeClose[];
   names: TradeName[];
-  sources: string[];
   warnings: string[];
 }

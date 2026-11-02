@@ -5,8 +5,6 @@ import type { CalendarEvent, EventCategory } from "@shared/tables.ts";
 import { demoEvents } from "./demo/index.ts";
 import { supabase, type SessionState } from "./supabase.ts";
 
-export const EVENTS_CHANGED = "vantage:events-changed";
-
 /**
  * Validated as a set on the dark surface for colour-blind and normal-vision separation (all pairs); each holds white text at 4.5:1.
  */
@@ -21,18 +19,13 @@ export type EventsData = { events: CalendarEvent[]; loading: boolean; error?: st
 
 export function useEvents(session: SessionState): EventsData {
   const [data, setData] = useState<EventsData>({ events: [], loading: false });
-  const [version, setVersion] = useState(0);
+  const owner = session === undefined ? undefined : (session?.user.id ?? null);
   useEffect(() => {
-    const bump = () => setVersion((v) => v + 1);
-    window.addEventListener(EVENTS_CHANGED, bump);
-    return () => window.removeEventListener(EVENTS_CHANGED, bump);
-  }, []);
-  useEffect(() => {
-    if (session === undefined) {
+    if (owner === undefined) {
       setData({ events: [], loading: true });
       return;
     }
-    if (!session || !supabase) {
+    if (!owner || !supabase) {
       setData({ events: demoEvents(), loading: false });
       return;
     }
@@ -58,7 +51,7 @@ export function useEvents(session: SessionState): EventsData {
     return () => {
       disposed = true;
     };
-  }, [session, version]);
+  }, [owner]);
   return data;
 }
 

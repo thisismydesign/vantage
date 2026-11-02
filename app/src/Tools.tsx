@@ -21,6 +21,12 @@ function MarginSizingTool() {
         </Text>
       </Group>
     );
+  if (broker.error)
+    return (
+      <Alert color="red" title="Broker data unavailable">
+        {broker.error}
+      </Alert>
+    );
   if (!broker.snapshot)
     return (
       <Alert title="No statement yet">

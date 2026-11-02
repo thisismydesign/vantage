@@ -107,36 +107,42 @@ async function onboard(body: Partial<OnboardRequest>, api: Endpoints, ip: string
     );
   }
   const owner = created.user.id;
-  const namesOwnList = Boolean(body.groups?.length || body.items?.length);
-  const useDefaults = body.defaults ?? !namesOwnList;
-  if (useDefaults) await seedDefaults(db, owner);
-  const warnings: string[] = [];
-  for (const group of body.groups ?? []) {
-    try {
-      await addGroup(db, owner, group);
-    } catch (e) {
-      warnings.push(`group ${group.label}: ${(e as Error).message}`);
+  try {
+    const namesOwnList = Boolean(body.groups?.length || body.items?.length);
+    const useDefaults = body.defaults ?? !namesOwnList;
+    if (useDefaults) await seedDefaults(db, owner);
+    const warnings: string[] = [];
+    for (const group of body.groups ?? []) {
+      try {
+        await addGroup(db, owner, group);
+      } catch (e) {
+        warnings.push(`group ${group.label}: ${(e as Error).message}`);
+      }
     }
-  }
-  for (const item of body.items ?? []) {
-    try {
-      await addItem(db, owner, item);
-    } catch (e) {
-      warnings.push(`item ${item.ticker}: ${(e as Error).message}`);
+    for (const item of body.items ?? []) {
+      try {
+        await addItem(db, owner, item);
+      } catch (e) {
+        warnings.push(`item ${item.ticker}: ${(e as Error).message}`);
+      }
     }
-  }
 
-  return json(
-    {
-      email,
-      ...(chosen ? {} : { password }),
-      session: await mintSession(email),
-      warnings,
-      list: publicList(await loadList(db, owner)),
-      api: endpoints(api),
-    } satisfies OnboardResponse,
-    201,
-  );
+    return json(
+      {
+        email,
+        ...(chosen ? {} : { password }),
+        session: await mintSession(email),
+        warnings,
+        list: publicList(await loadList(db, owner)),
+        api: endpoints(api),
+      } satisfies OnboardResponse,
+      201,
+    );
+  } catch (e) {
+    // The caller never saw the credentials, so a half-made account would lock the email out of retrying.
+    await db.auth.admin.deleteUser(owner).catch(() => {});
+    throw e;
+  }
 }
 
 type RestSpec = { paths?: Record<string, unknown>; definitions?: Record<string, unknown> };
@@ -233,8 +239,13 @@ Deno.serve(async (request) => {
   const url = new URL(request.url);
   // Supabase mounts the function at /functions/v1/vantage; routes are relative to it.
   const route = url.pathname.replace(/^\/vantage/, "").replace(/\/$/, "") || "/";
-  // The gateway terminates TLS, so the runtime sees http; the public URL is https.
-  const functions = `https://${url.host}/functions/v1`;
+  // The gateway terminates TLS, so the runtime sees http; the public URL is https. The local stack's gateway also hides its own address behind the forwarding headers.
+  const forwarded = (name: string) => request.headers.get(`x-forwarded-${name}`);
+  const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(url.host) && forwarded("host");
+  const origin = local
+    ? `${forwarded("proto") ?? "http"}://${forwarded("host")}${forwarded("port") ? `:${forwarded("port")}` : ""}`
+    : `https://${url.host}`;
+  const functions = `${origin}/functions/v1`;
   const api: Endpoints = {
     functions,
     base: `${functions}/vantage`,

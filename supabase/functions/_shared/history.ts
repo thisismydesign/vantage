@@ -25,7 +25,7 @@ export function cutRange(
 ): [string, number][] {
   const { bars } = RANGE_SOURCE[range];
   const start = windowStart(range, now);
-  const firstInside = src.findIndex(([key]) => closeTime(key, bars) >= start);
+  const firstInside = src.findIndex(([key]) => closeTime(key, bars) > start);
   if (firstInside < 0) return [];
   return thin(src.slice(Math.max(0, firstInside - 1))).points;
 }
