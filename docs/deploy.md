@@ -13,7 +13,8 @@ Vantage runs on a Supabase project (database, auth, Edge Function) and a Cloudfl
 ## Cloudflare
 
 1. Fill in `.env` from `.env.example`.
-2. `pnpm run deploy`. The site is the Custom Domain under `routes` in `app/wrangler.jsonc`; the zone MUST be in the same Cloudflare account, and wrangler creates the DNS record and certificate. Remove `routes` to serve from `https://<name>.<subdomain>.workers.dev` instead, where `<name>` is `name` in the same file.
+2. `pnpm run deploy`. The site is `https://<name>.<subdomain>.workers.dev`, where `<name>` is `name` in `app/wrangler.jsonc`.
+3. Optional: add a Custom Domain to the Worker in the Cloudflare dashboard (Settings, Domains & Routes). It is account state, not config, so later deploys keep it.
 
 ## CI
 
@@ -28,4 +29,4 @@ Vantage runs on a Supabase project (database, auth, Edge Function) and a Cloudfl
 | `PRODUCTION_URL`        | `CLOUDFLARE_API_TOKEN`  |
 | `VANTAGE_TEST_EMAIL`    |                         |
 
-`PRODUCTION_URL` is `<site>`. The rest match `.env.example`, or come from the Supabase and Cloudflare dashboards. `CLOUDFLARE_API_TOKEN` needs Workers Routes edit on the zone besides Workers Scripts edit, since every deploy syncs the Custom Domain.
+`PRODUCTION_URL` is `<site>`. The rest match `.env.example`, or come from the Supabase and Cloudflare dashboards.
