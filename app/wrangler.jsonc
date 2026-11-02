@@ -9,4 +9,6 @@
     "not_found_handling": "404-page",
     "run_worker_first": ["/llms.txt"],
   },
+  // Custom Domain on a zone in the same account; wrangler creates the DNS record and certificate on deploy.
+  "routes": [{ "pattern": "vantage.thisismydesign.io", "custom_domain": true }],
 }

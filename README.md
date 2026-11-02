@@ -2,7 +2,7 @@
 
 Portfolio manager: one place to keep and look through your holdings, trades, events and news.
 
-[Use it live](https://vantage.personal-553.workers.dev) or [deploy your own](docs/deploy.md).
+[Use it live](https://vantage.thisismydesign.io) or [deploy your own](docs/deploy.md).
 
 ## Features
 
