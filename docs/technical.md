@@ -4,7 +4,7 @@ Purpose: the stack and the principles every change MUST respect. Intent, not imp
 
 ## Stack
 
-- App: React + Mantine via Vite, static assets on Cloudflare Workers.
+- App: React + Mantine via Vite, static assets on Cloudflare Workers. Addresses are paths (`/portfolio/positions`, `/tools/margin`); the host serves the app for any path that is not a file.
 - Backend: Supabase — Postgres, Auth (email + password, no emails sent), Edge Functions (Deno), Vault.
 - Data: Yahoo Finance (prices, FX). Broker statements (positions, trades) arrive from the owner's agent.
 

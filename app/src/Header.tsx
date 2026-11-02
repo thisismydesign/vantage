@@ -14,7 +14,7 @@ import { IconEye, IconEyeOff, IconMoon, IconSun } from "@tabler/icons-react";
 import { Fragment, useEffect, useState } from "react";
 import { usePrivacy } from "./lib/privacy.tsx";
 import { PAGES, type Page } from "./App.tsx";
-import { useHashTab } from "./lib/useHashTab.ts";
+import { useTab } from "./lib/useTab.ts";
 import { readLocalState } from "./lib/useLocalState.ts";
 import { Logo } from "./Logo.tsx";
 import { TAB_KEYS, TABS } from "./Portfolio.tsx";
@@ -85,8 +85,8 @@ function BurgerNav({ page, onNavigate }: { page: Page; onNavigate: (p: Page) => 
   const close = () => setOpened(false);
   // The back button changes the page under an open menu.
   useEffect(close, [page]);
-  // A bare #/portfolio opens the stored tab, so the menu marks that one.
-  const [sub, goTab] = useHashTab<Tab | "">("portfolio", TAB_KEYS, "");
+  // A bare /portfolio opens the stored tab, so the menu marks that one.
+  const [sub, goTab] = useTab<Tab | "">("portfolio", TAB_KEYS, "");
   const stored = readLocalState<Tab>("portfolio:tab", "account");
   const tab = sub || (TAB_KEYS.includes(stored) ? stored : "account");
   return (

@@ -9,6 +9,7 @@ import { PortfolioPage } from "./Portfolio.tsx";
 import { TradesPage } from "./Trades.tsx";
 import { useChartData } from "./lib/api.ts";
 import { buildPortfolio, buildTrades, pricingFrom, useBrokerData } from "./lib/broker.ts";
+import { navigate, useSegments } from "./lib/route.ts";
 import { supabase, useSession } from "./lib/supabase.ts";
 import { OPEN_SIGN_IN } from "./Watchlist.tsx";
 
@@ -23,19 +24,17 @@ export const PAGES = [
 export type Page = (typeof PAGES)[number]["value"];
 export const isPage = (v: string): v is Page => PAGES.some((p) => p.value === v);
 
-export function useHashPage(): [Page, (p: Page) => void] {
-  const read = () => {
-    // Pages may read later segments (#/tools/margin).
-    const [first] = window.location.hash.replace(/^#\/?/, "").split("/");
-    return isPage(first) ? first : "watchlist";
-  };
-  const [page, setPage] = useState<Page>(read);
-  useEffect(() => {
-    const onChange = () => setPage(read());
-    window.addEventListener("hashchange", onChange);
-    return () => window.removeEventListener("hashchange", onChange);
-  }, []);
-  return [page, (p) => (window.location.hash = `/${p}`)];
+/** Addresses were fragments once (#/tools/margin); a link kept from then still opens. Call before the first render. */
+export const adoptFragmentAddress = () => {
+  const path = window.location.hash.replace(/^#\/?/, "/");
+  if (isPage(path.split("/")[1]))
+    window.history.replaceState(null, "", path + window.location.search);
+};
+
+export function usePage(): [Page, (p: Page) => void] {
+  // Pages may read later segments (/tools/margin).
+  const [first] = useSegments();
+  return [isPage(first) ? first : "watchlist", (p) => navigate(`/${p}`)];
 }
 
 const baseOf = (currency: string | null | undefined): BaseCurrency =>

@@ -26,7 +26,7 @@ test("charts the account value and its performance net of deposits", async ({ pa
   });
   expect([200, 201]).toContain(sent.status());
 
-  await page.goto("/#/portfolio");
+  await page.goto("/portfolio");
   const card = page.locator(".mantine-Card-root", { hasText: "Performance" });
   await card.getByText("3M", { exact: true }).click();
   await card.getByText("Value", { exact: true }).click();
@@ -41,7 +41,7 @@ test("charts the account value and its performance net of deposits", async ({ pa
 });
 
 test("lists positions by ticker, and re-sorts them by any column", async ({ page }) => {
-  await page.goto("/#/portfolio/positions");
+  await page.goto("/portfolio/positions");
   await page.getByText("List", { exact: true }).click();
   const tickers = page.locator("tbody tr td:first-child p:first-child");
   await expect(tickers.first()).toBeVisible({ timeout: 60_000 });

@@ -97,19 +97,32 @@ test("keeps the watchlist function to signed-in callers", async ({ request }) =>
 });
 
 test("shows demo data on every page while signed out", async ({ page }) => {
-  await page.goto("/#/portfolio/account");
+  await page.goto("/portfolio/account");
   await expect(page.getByText("Net value")).toBeVisible({ timeout: 60_000 });
-  await page.goto("/#/portfolio/positions");
+  await page.goto("/portfolio/positions");
   await expect(page.getByText("NVDA").first()).toBeVisible();
   await expect(page.getByText("1D P&L").first()).toBeVisible();
-  await page.goto("/#/trades");
+  await page.goto("/trades");
   await expect(page.getByText("AAOI").first()).toBeVisible();
-  await page.goto("/#/calendar");
+  await page.goto("/calendar");
   await expect(page.getByText("Quarterly dividend (ex-date)").first()).toBeVisible();
-  await page.goto("/#/news");
+  await page.goto("/news");
   await expect(page.getByText("Nvidia ships first rack-scale systems")).toBeVisible();
+  await page.goto("/tools/margin");
+  await expect(page.getByText("Bet size (notional)")).toBeVisible();
+  // A link from before addresses were paths still opens.
   await page.goto("/#/tools/margin");
   await expect(page.getByText("Bet size (notional)")).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe("/tools/margin");
+});
+
+test("serves the app at a page address", async ({ request }) => {
+  // Cloudflare falls back to the app for navigations by itself; the Worker covers link previews and crawlers.
+  for (const headers of [{ "Sec-Fetch-Mode": "navigate" }, {}] as Record<string, string>[]) {
+    const response = await request.get("/portfolio/positions", { headers });
+    expect(response.ok()).toBe(true);
+    expect(await response.text()).toContain('<div id="root">');
+  }
 });
 
 test("limits each user's lookups per day", async ({ request }) => {

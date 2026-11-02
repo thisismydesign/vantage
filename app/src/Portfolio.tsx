@@ -17,7 +17,7 @@ import { NavHistory } from "./NavHistory.tsx";
 import { PositionsPage } from "./Positions.tsx";
 import { displayDate, displayDateTime, pct, signedPct } from "./lib/format.ts";
 import { usePrivateMoney } from "./lib/privacy.tsx";
-import { useHashTab } from "./lib/useHashTab.ts";
+import { useTab } from "./lib/useTab.ts";
 import { useLocalState } from "./lib/useLocalState.ts";
 import { groupColors, groupSolid, TONE } from "./theme.ts";
 import type { Built, FillRow, NavRow, Snapshot } from "./lib/broker.ts";
@@ -153,9 +153,9 @@ export function PortfolioPage({
   cycle: number;
   stale: boolean;
 }) {
-  // A bare #/portfolio reopens the last tab, so the phone lands on the overview it was left on.
+  // A bare /portfolio reopens the last tab, so the phone lands on the overview it was left on.
   const [last, setLast] = useLocalState<Tab>("portfolio:tab", "account");
-  const [tab, go] = useHashTab("portfolio", TAB_KEYS, TAB_KEYS.includes(last) ? last : "account");
+  const [tab, go] = useTab("portfolio", TAB_KEYS, TAB_KEYS.includes(last) ? last : "account");
   useEffect(() => setLast(tab), [tab, setLast]);
   return (
     <Tabs

@@ -1,7 +1,7 @@
 import { Alert, Group, Loader, Tabs, Text } from "@mantine/core";
 import { useBrokerData } from "./lib/broker.ts";
 import { useSession } from "./lib/supabase.ts";
-import { useHashTab } from "./lib/useHashTab.ts";
+import { useTab } from "./lib/useTab.ts";
 import { MarginSizing } from "./tools/MarginSizing.tsx";
 
 const TOOLS = [{ value: "margin", label: "Margin sizing" }] as const;
@@ -38,7 +38,7 @@ function MarginSizingTool() {
 }
 
 export function ToolsPage() {
-  const [tool, go] = useHashTab("tools", TOOL_KEYS, TOOLS[0].value);
+  const [tool, go] = useTab("tools", TOOL_KEYS, TOOLS[0].value);
   return (
     <Tabs value={tool} onChange={(v) => v && isTool(v) && go(v)} variant="pills" radius="xl">
       <Tabs.List justify="center" mb="lg">

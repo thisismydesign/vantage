@@ -27,7 +27,7 @@ test("shows a news item the agent recorded", async ({ page, request }) => {
   });
   expect([200, 201]).toContain(upsert.status());
 
-  await page.goto("/#/news");
+  await page.goto("/news");
   await expect(page.getByRole("link", { name: "E2E analyst note" })).toBeVisible();
   await expect(page.getByText("Recorded by the end-to-end suite.")).toBeVisible();
 });

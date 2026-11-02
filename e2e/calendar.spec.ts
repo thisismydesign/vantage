@@ -25,7 +25,7 @@ test("shows an event the agent recorded", async ({ page, request }) => {
   });
   expect([200, 201]).toContain(upsert.status());
 
-  await page.goto("/#/calendar");
+  await page.goto("/calendar");
   await expect(page.getByText("E2E earnings call").first()).toBeVisible();
   await page
     .getByRole("button", { name: /E2E earnings call/ })

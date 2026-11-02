@@ -1,6 +1,11 @@
 import { llmsTxt } from "./llms.ts";
 
-// Runs only for the paths in run_worker_first; everything else is a static asset.
+type Env = { SUPABASE_URL: string; ASSETS: { fetch: typeof fetch } };
+
+// Runs for /llms.txt, and for page addresses the host does not serve itself: it falls back to the app only for browser navigations, so link previews and crawlers reach the Worker and get it here.
 export default {
-  fetch: (_request: Request, env: { SUPABASE_URL: string }) => llmsTxt(env.SUPABASE_URL),
+  fetch: (request: Request, env: Env) =>
+    new URL(request.url).pathname === "/llms.txt"
+      ? llmsTxt(env.SUPABASE_URL)
+      : env.ASSETS.fetch(new Request(new URL("/", request.url), request)),
 };

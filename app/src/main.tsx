@@ -3,7 +3,7 @@ import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { PrivacyProvider } from "./lib/privacy.tsx";
 import { cssVariablesResolver, theme } from "./theme.ts";
-import { Vantage, useHashPage } from "./App.tsx";
+import { Vantage, adoptFragmentAddress, usePage } from "./App.tsx";
 import { Footer } from "./Footer.tsx";
 import { VantageBar } from "./Header.tsx";
 
@@ -20,7 +20,7 @@ function useThemeColorMeta() {
 }
 
 function App() {
-  const [page, go] = useHashPage();
+  const [page, go] = usePage();
   useThemeColorMeta();
   return (
     <AppShell header={{ height: 52 }} padding="md">
@@ -43,6 +43,7 @@ function App() {
   );
 }
 
+adoptFragmentAddress();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <MantineProvider
